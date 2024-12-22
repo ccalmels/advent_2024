@@ -1,27 +1,27 @@
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
-use std::str::FromStr;
 use std::iter::zip;
+use std::str::FromStr;
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)
 where
     T: BufRead,
 {
-    let (mut left, mut right) = (vec!(), vec!());
-    let mut counts : HashMap<u32, u32> = HashMap::new();
+    let (mut left, mut right) = (vec![], vec![]);
+    let mut counts: HashMap<u32, u32> = HashMap::new();
 
     for line in lines {
-	let line = line.unwrap();
-	let split: Vec<&str> = line.split_whitespace().collect();
-	let (a, b) = (
-	    u32::from_str(split[0]).unwrap(),
-	    u32::from_str(split[1]).unwrap()
-	);
+        let line = line.unwrap();
+        let split: Vec<&str> = line.split_whitespace().collect();
+        let (a, b) = (
+            u32::from_str(split[0]).unwrap(),
+            u32::from_str(split[1]).unwrap(),
+        );
 
-	left.push(a);
-	right.push(b);
+        left.push(a);
+        right.push(b);
 
-	*counts.entry(b).or_insert(0) += 1;
+        *counts.entry(b).or_insert(0) += 1;
     }
 
     let numbers = left.clone();
@@ -30,14 +30,14 @@ where
     right.sort_unstable();
 
     (
-	zip(left, right).fold(0, |acc, (a, b)| acc + a.abs_diff(b)),
-	numbers.iter().fold(0, |acc, e| {
-	    if let Some(count) = counts.get(e) {
-		acc + e * count
-	    } else {
-		acc
-	    }
-	})
+        zip(left, right).fold(0, |acc, (a, b)| acc + a.abs_diff(b)),
+        numbers.iter().fold(0, |acc, e| {
+            if let Some(count) = counts.get(e) {
+                acc + e * count
+            } else {
+                acc
+            }
+        }),
     )
 }
 

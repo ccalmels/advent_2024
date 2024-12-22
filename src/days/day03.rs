@@ -1,6 +1,6 @@
+use regex::Regex;
 use std::io::{BufRead, Lines};
 use std::str::FromStr;
-use regex::Regex;
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)
 where
@@ -12,25 +12,25 @@ where
     let mut multiply = true;
 
     for line in lines {
-	let line = line.unwrap();
+        let line = line.unwrap();
 
-	(part1, part2) = re.captures_iter(&line).fold((part1, part2), |(p1, p2), c| {
-	    match c.get(0).unwrap().as_str() {
-		"do()" => multiply = true,
-		"don't()" => multiply = false,
-		_ => {
-		    let x = u32::from_str(c.get(1).map_or("", |m| m.as_str())).unwrap();
-		    let y = u32::from_str(c.get(2).map_or("", |m| m.as_str())).unwrap();
+        (part1, part2) = re.captures_iter(&line).fold((part1, part2), |(p1, p2), c| {
+            match c.get(0).unwrap().as_str() {
+                "do()" => multiply = true,
+                "don't()" => multiply = false,
+                _ => {
+                    let x = u32::from_str(c.get(1).map_or("", |m| m.as_str())).unwrap();
+                    let y = u32::from_str(c.get(2).map_or("", |m| m.as_str())).unwrap();
 
-		    if multiply {
-			return (p1 + x * y, p2 + x * y);
-		    } else {
-			return (p1 + x * y, p2);
-		    }
-		}
-	    }
-	    (p1, p2)
-	});
+                    if multiply {
+                        return (p1 + x * y, p2 + x * y);
+                    } else {
+                        return (p1 + x * y, p2);
+                    }
+                }
+            }
+            (p1, p2)
+        });
     }
 
     (part1, part2)
