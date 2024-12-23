@@ -1,18 +1,61 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
-use std::str::FromStr;
 
-fn less_than(ordering_rules: &HashMap<u32, HashSet<u32>>, a: &u32, b: &u32) -> Ordering {
-    if let Some(hset) = ordering_rules.get(a) {
-        if hset.contains(b) {
+#[derive(Debug, Eq, PartialEq)]
+struct Page {
+    number: u32,
+    before: HashSet<u32>,
+}
+
+impl Page {
+    fn new(number: u32) -> Self {
+        let before = HashSet::new();
+
+        Page { number, before }
+    }
+
+    fn add_print_before(&mut self, number: u32) {
+        self.before.insert(number);
+    }
+}
+
+impl PartialOrd for Page {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Page {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.before.contains(&other.number) {
             Ordering::Less
         } else {
             Ordering::Greater
         }
-    } else {
-        Ordering::Greater
     }
+}
+
+#[test]
+fn check_page() {
+    let mut p47 = Page::new(47);
+    let p53 = Page::new(53);
+
+    assert!(!(p47 < p53));
+
+    p47.add_print_before(p53.number);
+
+    assert!(p47 < p53);
+
+    let mut p75 = Page::new(75);
+
+    p75.add_print_before(47);
+    p75.add_print_before(61);
+
+    let p61 = Page::new(61);
+
+    assert!(p75 < p47);
+    assert!(p75 < p61);
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)
@@ -20,7 +63,7 @@ where
     T: BufRead,
 {
     let mut lines = lines;
-    let mut ordering_rules = HashMap::new();
+    let mut pages = HashMap::new();
 
     loop {
         let line = lines.next().unwrap().unwrap();
@@ -29,26 +72,31 @@ where
             break;
         }
 
-        let splitted: Vec<u32> = line.split('|').map(|s| u32::from_str(s).unwrap()).collect();
+        let splitted: Vec<u32> = line.split('|').map(|s| s.parse().unwrap()).collect();
 
-        ordering_rules
+        pages
             .entry(splitted[0])
-            .or_insert(HashSet::<u32>::new())
-            .insert(splitted[1]);
+            .or_insert(Page::new(splitted[0]))
+            .add_print_before(splitted[1]);
+
+        pages.entry(splitted[1]).or_insert(Page::new(splitted[1]));
     }
 
     lines.fold((0, 0), |(p1, p2), line| {
-        let line = line.unwrap();
-        let pages: Vec<u32> = line.split(',').map(|s| u32::from_str(s).unwrap()).collect();
+        let pages_list: Vec<&Page> = line
+            .unwrap()
+            .split(',')
+            .map(|s| pages.get(&s.parse().unwrap()).unwrap())
+            .collect();
 
-        if pages.is_sorted_by(|a, b| less_than(&ordering_rules, a, b).is_le()) {
-            (p1 + pages[pages.len() / 2], p2)
+        if pages_list.is_sorted() {
+            (p1 + pages_list[pages_list.len() / 2].number, p2)
         } else {
-            let mut pages = pages;
+            let mut pages_list = pages_list;
 
-            pages.sort_unstable_by(|a, b| less_than(&ordering_rules, a, b));
+            pages_list.sort_unstable();
 
-            (p1, p2 + pages[pages.len() / 2])
+            (p1, p2 + pages_list[pages_list.len() / 2].number)
         }
     })
 }
