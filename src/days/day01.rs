@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 use std::iter::zip;
-use std::str::FromStr;
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)
 where
@@ -13,9 +12,9 @@ where
     for line in lines {
         let line = line.unwrap();
         let split: Vec<&str> = line.split_whitespace().collect();
-        let (a, b) = (
-            u32::from_str(split[0]).unwrap(),
-            u32::from_str(split[1]).unwrap(),
+        let (a, b): (u32, u32) = (
+            split[0].parse().unwrap(),
+            split[1].parse().unwrap(),
         );
 
         left.push(a);
