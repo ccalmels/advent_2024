@@ -1,5 +1,4 @@
 use std::io::{BufRead, Lines};
-use std::str::FromStr;
 
 fn is_safe(report: &[i32]) -> bool {
     let direction = (report[1] - report[0]).signum();
@@ -31,19 +30,15 @@ fn resolve<T>(lines: Lines<T>) -> (u32, u32)
 where
     T: BufRead,
 {
-    let mut part1 = 0;
-    let mut part2 = 0;
-
-    for line in lines {
-        let line = line.unwrap();
-        let numbers = line
+    lines.fold((0, 0), |(p1, p2), line| {
+        let numbers: Vec<i32> = line
+            .unwrap()
             .split(' ')
-            .map(|n| i32::from_str(n).unwrap())
-            .collect::<Vec<_>>();
+            .map(|s| s.parse().unwrap())
+            .collect();
 
         if is_safe(&numbers) {
-            part1 += 1;
-            part2 += 1;
+            (p1 + 1, p2 + 1)
         } else if (0..numbers.len()).any(|n| {
             is_safe(
                 &numbers
@@ -53,11 +48,11 @@ where
                     .collect::<Vec<_>>(),
             )
         }) {
-            part2 += 1;
+            (p1, p2 + 1)
+        } else {
+            (p1, p2)
         }
-    }
-
-    (part1, part2)
+    })
 }
 
 #[test]
