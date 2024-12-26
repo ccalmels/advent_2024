@@ -12,10 +12,7 @@ where
     for line in lines {
         let line = line.unwrap();
         let split: Vec<&str> = line.split_whitespace().collect();
-        let (a, b): (u32, u32) = (
-            split[0].parse().unwrap(),
-            split[1].parse().unwrap(),
-        );
+        let (a, b): (u32, u32) = (split[0].parse().unwrap(), split[1].parse().unwrap());
 
         left.push(a);
         right.push(b);
