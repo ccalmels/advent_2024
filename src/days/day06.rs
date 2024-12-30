@@ -33,7 +33,7 @@ impl Direction {
         }
     }
 
-    fn to_mask(&self) -> u8 {
+    fn mask(&self) -> u8 {
         match self {
             Direction::Up => 0b_0001,
             Direction::Right => 0b_0010,
@@ -45,7 +45,7 @@ impl Direction {
 
 #[test]
 fn check_direction() {
-    let up: u8 = Direction::Up.to_mask();
+    let up: u8 = Direction::Up.mask();
 
     assert_eq!(up, 0b_0001);
     assert_eq!(Direction::Up.turn_right(), Direction::Right);
@@ -108,7 +108,7 @@ fn check_loop(
                 direction = direction.turn_right();
             } else {
                 let hentry = dirs.entry(next_position).or_default();
-                let m = direction.to_mask();
+                let m = direction.mask();
 
                 if *hentry & m == m {
                     return true;
@@ -123,6 +123,18 @@ fn check_loop(
         }
     }
     false
+}
+
+struct PossibleBlock {
+    block_position: (i32, i32),
+    position: (i32, i32),
+    direction: Direction,
+}
+
+impl PossibleBlock {
+    fn new(block_position: (i32, i32), position: (i32, i32),  direction: Direction) -> Self {
+	PossibleBlock { block_position, position, direction }
+    }
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
@@ -146,7 +158,7 @@ where
     }
 
     let mut map = Map::new(grid);
-    let mut blocks: Vec<((i32, i32), (i32, i32), Direction)> = vec![];
+    let mut blocks: Vec<PossibleBlock> = vec![];
 
     loop {
         let next_position = direction.next(guard);
@@ -156,7 +168,7 @@ where
                 direction = direction.turn_right();
             } else {
                 if v == b'.' {
-                    blocks.push((next_position, guard, direction.turn_right()));
+                    blocks.push(PossibleBlock::new(next_position, guard, direction.turn_right()));
 
                     map.set(next_position, b'X');
                 }
@@ -172,7 +184,7 @@ where
         blocks.len() + 1,
         blocks
             .into_par_iter()
-            .filter(|&(blocker, guard, direction)| check_loop(&map, blocker, guard, direction))
+            .filter(|block| check_loop(&map, block.block_position, block.position, block.direction))
             .count(),
     )
 }
