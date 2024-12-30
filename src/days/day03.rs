@@ -14,8 +14,8 @@ where
                     "do()" => (p1, p2, true),
                     "don't()" => (p1, p2, false),
                     _ => {
-                        let v = c.get(1).map_or("", |m| m.as_str()).parse::<u32>().unwrap()
-                            * c.get(2).map_or("", |m| m.as_str()).parse::<u32>().unwrap();
+                        let v = c.get(1).unwrap().as_str().parse::<u32>().unwrap()
+                            * c.get(2).unwrap().as_str().parse::<u32>().unwrap();
 
                         (p1 + v, if m { p2 + v } else { p2 }, m)
                     }
