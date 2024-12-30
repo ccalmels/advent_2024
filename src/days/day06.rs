@@ -1,7 +1,8 @@
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum Direction {
     Up,
     Right,
@@ -91,16 +92,19 @@ fn check_map() {
     assert_eq!(map.get((1, 1)), Some(99));
 }
 
-fn check_loop(map: &Map, guard: (i32, i32), direction: Direction) -> bool {
-    let mut guard = guard;
-    let mut direction = direction;
+fn check_loop(
+    map: &Map,
+    blocker: (i32, i32),
+    mut guard: (i32, i32),
+    mut direction: Direction,
+) -> bool {
     let mut dirs: HashMap<(i32, i32), u8> = HashMap::new();
 
     loop {
         let next_position = direction.next(guard);
 
         if let Some(v) = map.get(next_position) {
-            if v == b'#' {
+            if v == b'#' || next_position == blocker {
                 direction = direction.turn_right();
             } else {
                 let hentry = dirs.entry(next_position).or_default();
@@ -121,12 +125,12 @@ fn check_loop(map: &Map, guard: (i32, i32), direction: Direction) -> bool {
     false
 }
 
-fn resolve<T>(lines: Lines<T>) -> (usize, u32)
+fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
     let mut grid = vec![];
-    let mut start = (0i32, 0i32);
+    let mut guard = (0i32, 0i32);
     let mut direction = Direction::new();
 
     for line in lines {
@@ -135,15 +139,14 @@ where
         let index = line.as_bytes().iter().position(|&v| v == b'^');
 
         if let Some(index) = index {
-            start = (index as i32, grid.len() as i32);
+            guard = (index as i32, grid.len() as i32);
         }
 
         grid.push(line.as_bytes().to_owned());
     }
 
     let mut map = Map::new(grid);
-    let mut guard = start;
-    let (mut part1, mut part2) = (1, 0);
+    let mut blocks: Vec<((i32, i32), (i32, i32), Direction)> = vec![];
 
     loop {
         let next_position = direction.next(guard);
@@ -153,13 +156,7 @@ where
                 direction = direction.turn_right();
             } else {
                 if v == b'.' {
-                    part1 += 1;
-
-                    map.set(next_position, b'#');
-
-                    if check_loop(&map, guard, direction.turn_right()) {
-                        part2 += 1;
-                    }
+                    blocks.push((next_position, guard, direction.turn_right()));
 
                     map.set(next_position, b'X');
                 }
@@ -171,7 +168,13 @@ where
         }
     }
 
-    (part1, part2)
+    (
+        blocks.len() + 1,
+        blocks
+            .into_par_iter()
+            .filter(|&(blocker, guard, direction)| check_loop(&map, blocker, guard, direction))
+            .count(),
+    )
 }
 
 #[test]
@@ -185,8 +188,7 @@ fn check() {
 .#..^.....
 ........#.
 #.........
-......#...
-";
+......#...";
     use std::io::Cursor;
 
     assert_eq!(resolve(Cursor::new(TEST).lines()), (41, 6));
