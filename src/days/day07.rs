@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use std::io::{BufRead, Lines};
 
 fn number_of_digits(n: u64) -> u64 {
@@ -43,23 +42,33 @@ fn check_operation() {
     assert_eq!(Operation::Concatenate.compute(5, 73), 573);
 }
 
-fn check_all_operations(total: u64, values: &[u64], operations: &[Operation]) -> bool {
-    std::iter::repeat(operations)
-        .take(values.len() - 1)
-        .multi_cartesian_product()
-        .any(|x| {
-            let mut t = values[0];
+fn operation_recurs(target: u64, total: u64, values: &[u64], operations: &[Operation]) -> bool {
+    if values.is_empty() {
+        target == total
+    } else {
+        operations.iter().any(|op| {
+            let total = op.compute(total, values[0]);
 
-            for (operation, &value) in x.into_iter().zip(&values[1..]) {
-                t = operation.compute(t, value);
-
-                if t > total {
-                    return false;
-                }
+            if total > target {
+                false
+            } else {
+                operation_recurs(target, total, &values[1..], operations)
             }
-
-            total == t
         })
+    }
+}
+
+#[test]
+fn check_operation_recurs() {
+    let opes1 = &[Operation::Add, Operation::Multiply];
+    let opes2 = &[Operation::Add, Operation::Multiply, Operation::Concatenate];
+
+    assert!(operation_recurs(190, 10, &[19], opes1));
+    assert!(operation_recurs(3267, 81, &[40, 27], opes1));
+    assert!(!operation_recurs(83, 17, &[5], opes1));
+    assert!(!operation_recurs(156, 15, &[6], opes1));
+    assert!(operation_recurs(156, 15, &[6], opes2));
+    assert!(!operation_recurs(161011, 16, &[10, 13], opes1));
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u64, u64)
@@ -74,18 +83,20 @@ where
             .collect();
 
         (
-            if check_all_operations(
+            if operation_recurs(
                 splitted[0],
-                &splitted[1..],
+                splitted[1],
+                &splitted[2..],
                 &[Operation::Add, Operation::Multiply],
             ) {
                 p1 + splitted[0]
             } else {
                 p1
             },
-            if check_all_operations(
+            if operation_recurs(
                 splitted[0],
-                &splitted[1..],
+                splitted[1],
+                &splitted[2..],
                 &[Operation::Add, Operation::Multiply, Operation::Concatenate],
             ) {
                 p2 + splitted[0]
