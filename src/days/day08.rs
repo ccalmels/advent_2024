@@ -1,16 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
-fn add_antinode(antinodes: &mut HashSet<(i32, i32)>, pos: (i32, i32), v: (i32, i32), k: i32) -> bool
-{
+fn compute_antinode(pos: (i32, i32), v: (i32, i32), k: i32) -> Option<(i32, i32)> {
     const S: i32 = if cfg!(test) { 12 } else { 50 };
     let antinode = (pos.0 + k * v.0, pos.1 + k * v.1);
 
     if antinode.0 < 0 || antinode.1 < 0 || antinode.0 >= S || antinode.1 >= S {
-	false
+        None
     } else {
-	antinodes.insert(antinode);
-	true
+        Some(antinode)
     }
 }
 
@@ -19,8 +17,6 @@ where
     T: BufRead,
 {
     let mut antennas: HashMap<u8, Vec<(i32, i32)>> = HashMap::new();
-    let mut antinodes: HashSet<(i32, i32)> = HashSet::new();
-    let mut antinodes2: HashSet<(i32, i32)> = HashSet::new();
 
     for (y, line) in lines.into_iter().enumerate() {
         let line = line.unwrap();
@@ -34,37 +30,41 @@ where
         }
     }
 
+    let mut antinodes: HashSet<(i32, i32)> = HashSet::new();
+    let mut antinodes2: HashSet<(i32, i32)> =
+        antennas.values().flat_map(|v| v.iter().copied()).collect();
+
     for (_, positions) in antennas.iter() {
         let len = positions.len();
 
         for i in 0..len {
-            for j in 0..len {
-                if i == j {
-                    continue;
-                }
-
+            for j in i + 1..len {
                 let v = (
                     positions[j].0 - positions[i].0,
                     positions[j].1 - positions[i].1,
                 );
 
-		add_antinode(&mut antinodes, positions[j], v, 1);
+                let mut k = 1;
+                while let Some(a) = compute_antinode(positions[j], v, k) {
+                    if k == 1 {
+                        antinodes.insert(a);
+                    }
+                    antinodes2.insert(a);
 
-		let mut k = 1;
-		loop {
-		    if !add_antinode(&mut antinodes2, positions[j], v, k) {
-			break;
-		    }
-		    k += 1;
-		}
+                    k += 1;
+                }
+
+                let mut k = -2;
+                while let Some(a) = compute_antinode(positions[j], v, k) {
+                    if k == -2 {
+                        antinodes.insert(a);
+                    }
+                    antinodes2.insert(a);
+
+                    k -= 1;
+                }
             }
         }
-    }
-
-    for v in antennas.values() {
-	for &a in v {
-	    antinodes2.insert(a);
-	}
     }
 
     (antinodes.len(), antinodes2.len())
