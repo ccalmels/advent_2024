@@ -132,8 +132,16 @@ struct PossibleBlock {
 }
 
 impl PossibleBlock {
-    fn new(block_position: (i32, i32), position: (i32, i32),  direction: Direction) -> Self {
-	PossibleBlock { block_position, position, direction }
+    fn new(block_position: (i32, i32), position: (i32, i32), direction: Direction) -> Self {
+        PossibleBlock {
+            block_position,
+            position,
+            direction,
+        }
+    }
+
+    fn check_loop(&self, map: &Map) -> bool {
+        check_loop(map, self.block_position, self.position, self.direction)
     }
 }
 
@@ -168,7 +176,11 @@ where
                 direction = direction.turn_right();
             } else {
                 if v == b'.' {
-                    blocks.push(PossibleBlock::new(next_position, guard, direction.turn_right()));
+                    blocks.push(PossibleBlock::new(
+                        next_position,
+                        guard,
+                        direction.turn_right(),
+                    ));
 
                     map.set(next_position, b'X');
                 }
@@ -184,7 +196,7 @@ where
         blocks.len() + 1,
         blocks
             .into_par_iter()
-            .filter(|block| check_loop(&map, block.block_position, block.position, block.direction))
+            .filter(|block| block.check_loop(&map))
             .count(),
     )
 }
