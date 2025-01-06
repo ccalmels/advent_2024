@@ -30,42 +30,48 @@ where
         }
     }
 
-    let mut antinodes: HashSet<(i32, i32)> = HashSet::new();
-    let mut antinodes2: HashSet<(i32, i32)> =
-        antennas.values().flat_map(|v| v.iter().copied()).collect();
+    let (antinodes, antinodes2) = antennas.values().fold(
+        (
+            HashSet::new(),
+            antennas
+                .values()
+                .flat_map(|v| v.iter().copied())
+                .collect::<HashSet<_>>(),
+        ),
+        |(mut h1, mut h2), positions| {
+            let len = positions.len();
 
-    for (_, positions) in antennas.iter() {
-        let len = positions.len();
+            for i in 0..len {
+                for j in i + 1..len {
+                    let v = (
+                        positions[j].0 - positions[i].0,
+                        positions[j].1 - positions[i].1,
+                    );
 
-        for i in 0..len {
-            for j in i + 1..len {
-                let v = (
-                    positions[j].0 - positions[i].0,
-                    positions[j].1 - positions[i].1,
-                );
+                    let mut k = 1;
+                    while let Some(a) = compute_antinode(positions[j], v, k) {
+                        if k == 1 {
+                            h1.insert(a);
+                        }
+                        h2.insert(a);
 
-                let mut k = 1;
-                while let Some(a) = compute_antinode(positions[j], v, k) {
-                    if k == 1 {
-                        antinodes.insert(a);
+                        k += 1;
                     }
-                    antinodes2.insert(a);
 
-                    k += 1;
-                }
+                    let mut k = -2;
+                    while let Some(a) = compute_antinode(positions[j], v, k) {
+                        if k == -2 {
+                            h1.insert(a);
+                        }
+                        h2.insert(a);
 
-                let mut k = -2;
-                while let Some(a) = compute_antinode(positions[j], v, k) {
-                    if k == -2 {
-                        antinodes.insert(a);
+                        k -= 1;
                     }
-                    antinodes2.insert(a);
-
-                    k -= 1;
                 }
             }
-        }
-    }
+            (h1, h2)
+        },
+    );
 
     (antinodes.len(), antinodes2.len())
 }
