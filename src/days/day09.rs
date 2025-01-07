@@ -10,7 +10,7 @@ fn resolve_part1(disk: &mut [u8]) -> usize {
     let mut index = 0;
     let mut last_index = disk.len() - 1;
     let mut offset = 0;
-    let mut part1 = 0;
+    let mut ret = 0;
 
     while index <= last_index {
         let size = disk[index] as usize;
@@ -19,7 +19,7 @@ fn resolve_part1(disk: &mut [u8]) -> usize {
             // file
             let file_id = index / 2;
 
-            part1 += checksum(file_id, offset, size);
+            ret += checksum(file_id, offset, size);
             offset += size;
         } else {
             // empty
@@ -27,7 +27,7 @@ fn resolve_part1(disk: &mut [u8]) -> usize {
             let file_id = last_index / 2;
 
             if size < last_file_space {
-                part1 += checksum(file_id, offset, size);
+                ret += checksum(file_id, offset, size);
 
                 offset += size;
 
@@ -35,11 +35,12 @@ fn resolve_part1(disk: &mut [u8]) -> usize {
             } else {
                 last_index -= 2;
 
-                part1 += checksum(file_id, offset, last_file_space);
+                ret += checksum(file_id, offset, last_file_space);
 
                 offset += last_file_space;
 
                 if size != last_file_space {
+                    // update the remaining space and stay on the same index
                     disk[index] = (size - last_file_space) as u8;
                     continue;
                 }
@@ -49,58 +50,47 @@ fn resolve_part1(disk: &mut [u8]) -> usize {
         index += 1;
     }
 
-    part1
+    ret
 }
 
 fn resolve_part2(
     file_blocks: &[(usize, usize)],
     empty_blocks: &mut [BinaryHeap<Reverse<usize>>; 10],
 ) -> usize {
-    let mut part2 = 0;
+    file_blocks
+        .iter()
+        .enumerate()
+        .rev()
+        .fold(0, |acc, (file_id, &(offset, size))| {
+            // find a better place
+            let mut better_places: Vec<(usize, usize)> = (size..10)
+                .filter_map(|idx| match empty_blocks[idx].peek() {
+                    Some(Reverse(v)) if *v < offset => Some((idx, *v)),
+                    _ => None,
+                })
+                .collect();
 
-    for (file_id, &(offset, size)) in file_blocks.iter().enumerate().rev() {
-        // find a better place
-        let mut better_places = empty_blocks
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, bheap)| {
-                if idx < size {
-                    None
-                } else if let Some(Reverse(v)) = bheap.peek() {
-                    if *v < offset {
-                        Some((idx, *v))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+            if better_places.is_empty() {
+                acc + checksum(file_id, offset, size)
+            } else {
+                // take the place that's more on the left
+                better_places.sort_unstable_by_key(|k| k.1);
+
+                let (empty_size, empty_offset) = better_places[0];
+
+                // remove the blocks
+                empty_blocks[empty_size].pop();
+
+                if empty_size > size {
+                    // reinsert the remaining empty blocks
+                    let new_empty_size = empty_size - size;
+
+                    empty_blocks[new_empty_size].push(Reverse(empty_offset + size));
                 }
-            })
-            .collect::<Vec<_>>();
 
-        if better_places.is_empty() {
-            part2 += checksum(file_id, offset, size);
-        } else {
-            // take the place that's more on the left
-            better_places.sort_unstable_by_key(|k| k.1);
-
-            let (empty_size, empty_offset) = better_places[0];
-
-            // remove the blocks
-            empty_blocks[empty_size].pop();
-
-            if empty_size > size {
-                // reinsert the remaining empty blocks
-                let new_empty_size = empty_size - size;
-
-                empty_blocks[new_empty_size].push(Reverse(empty_offset + size));
+                acc + checksum(file_id, empty_offset, size)
             }
-
-            part2 += checksum(file_id, empty_offset, size);
-        }
-    }
-
-    part2
+        })
 }
 
 fn resolve<T>(mut lines: Lines<T>) -> (usize, usize)
@@ -116,8 +106,10 @@ where
     for c in lines.next().unwrap().unwrap().as_bytes() {
         let size = c - b'0';
 
+        // part1
         disk.push(size);
 
+        // part2
         let size = size as usize;
         if is_file {
             file_blocks.push((offset, size));
