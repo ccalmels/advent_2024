@@ -18,7 +18,7 @@ where
 {
     let mut antennas: HashMap<u8, Vec<(i32, i32)>> = HashMap::new();
 
-    for (y, line) in lines.into_iter().enumerate() {
+    for (y, line) in lines.enumerate() {
         let line = line.unwrap();
 
         for (x, &c) in line.as_bytes().iter().enumerate() {
