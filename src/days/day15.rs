@@ -2,88 +2,68 @@ use std::io::{BufRead, Lines};
 
 const SIZE: usize = if cfg!(test) { 10 } else { 50 };
 
-fn get_direction(direction: u8) -> (i32, i32) {
-    match direction {
-        b'^' => (0, -1),
-        b'>' => (1, 0),
-        b'v' => (0, 1),
-        b'<' => (-1, 0),
-        _ => panic!(),
+#[derive(Debug, Clone, Copy)]
+struct Point(usize, usize);
+
+impl Point {
+    fn up(&self) -> Self {
+        Point(self.0, self.1.checked_sub(1).unwrap())
     }
-}
 
-fn walk(grid: &mut [[u8; SIZE]; SIZE], robot: &mut (i32, i32), direction: u8) {
-    let direction = get_direction(direction);
-    let (nextx, nexty) = (robot.0 + direction.0, robot.1 + direction.1);
-    let mut nboxes = 0;
+    fn right(&self) -> Self {
+        Point(self.0.checked_add(1).unwrap(), self.1)
+    }
 
-    loop {
-        let (px, py) = (
-            (nextx + nboxes * direction.0) as usize,
-            (nexty + nboxes * direction.1) as usize,
-        );
+    fn down(&self) -> Self {
+        Point(self.0, self.1.checked_add(1).unwrap())
+    }
 
-        match grid[py][px] {
-            b'.' => {
-                grid[py][px] = b'O';
-                break;
-            }
-            b'O' => nboxes += 1,
-            b'#' => return,
+    fn left(&self) -> Self {
+        Point(self.0.checked_sub(1).unwrap(), self.1)
+    }
+
+    fn move_to(&self, direction: u8) -> Self {
+        match direction {
+            b'^' => self.up(),
+            b'>' => self.right(),
+            b'v' => self.down(),
+            b'<' => self.left(),
             _ => panic!(),
         }
     }
-
-    *robot = (nextx, nexty);
-    grid[nexty as usize][nextx as usize] = b'.';
 }
 
-#[cfg(test)]
-fn print_grid(grid: &[[u8; SIZE]; SIZE], robot: &(i32, i32)) {
-    for (y, line) in grid.iter().enumerate() {
-        for (x, &c) in line.iter().enumerate() {
-            if robot.0 as usize == x && robot.1 as usize == y {
-                print!("@");
-            } else {
-                print!("{}", c as char);
+fn walk(grid: &mut [[u8; 2 * SIZE]; SIZE], robot: Point, direction: u8) -> Point {
+    let mut next = robot;
+
+    loop {
+        next = next.move_to(direction);
+
+        match grid[next.1][next.0] {
+            b'.' => {
+                let robot = robot.move_to(direction);
+                grid[next.1][next.0] = b'O';
+                grid[robot.1][robot.0] = b'.';
+                return robot;
             }
+            b'O' => (),
+            b'#' => return robot,
+            _ => panic!(),
         }
-        println!();
     }
-    println!();
 }
 
-#[cfg(not(test))]
-fn print_grid(_grid: &[[u8; SIZE]; SIZE], _robot: &(i32, i32)) {}
-
-fn gps_boxes(grid: &[[u8; SIZE]; SIZE]) -> usize {
-    grid.iter().enumerate().fold(0, |acc, (y, line)| {
-        line.iter().enumerate().fold(
-            acc,
-            |a, (x, &c)| {
-                if c == b'O' {
-                    a + y * 100 + x
-                } else {
-                    a
-                }
-            },
-        )
-    })
-}
-
-fn move_box_horizontaly(
-    grid: &mut [[u8; 2 * SIZE]; SIZE],
-    b: (i32, i32),
-    direction: (i32, i32),
-) -> bool {
-    let g = grid[b.1 as usize][b.0 as usize];
+fn move_box_horizontaly(grid: &mut [[u8; 2 * SIZE]; SIZE], p: Point, direction: u8) -> bool {
+    let g = grid[p.1][p.0];
 
     match g {
         b'#' => false,
         b'.' => true,
         _ => {
-            if move_box_horizontaly(grid, (b.0 + direction.0, b.1), direction) {
-                grid[b.1 as usize][(b.0 + direction.0) as usize] = g;
+            let p = p.move_to(direction);
+
+            if move_box_horizontaly(grid, p, direction) {
+                grid[p.1][p.0] = g;
                 true
             } else {
                 false
@@ -92,76 +72,85 @@ fn move_box_horizontaly(
     }
 }
 
-fn can_move_box_verticaly(
-    grid: &[[u8; 2 * SIZE]; SIZE],
-    b: (i32, i32),
-    direction: (i32, i32),
-) -> bool {
-    match grid[b.1 as usize][b.0 as usize] {
+fn can_move_box_verticaly(grid: &[[u8; 2 * SIZE]; SIZE], p: Point, direction: u8) -> bool {
+    match grid[p.1][p.0] {
         b'#' => false,
         b'.' => true,
         b'[' => {
-            can_move_box_verticaly(grid, (b.0, b.1 + direction.1), direction)
-                && can_move_box_verticaly(grid, (b.0 + 1, b.1 + direction.1), direction)
+            let p = p.move_to(direction);
+
+            can_move_box_verticaly(grid, p, direction)
+                && can_move_box_verticaly(grid, p.right(), direction)
         }
         b']' => {
-            can_move_box_verticaly(grid, (b.0, b.1 + direction.1), direction)
-                && can_move_box_verticaly(grid, (b.0 - 1, b.1 + direction.1), direction)
+            let p = p.move_to(direction);
+
+            can_move_box_verticaly(grid, p, direction)
+                && can_move_box_verticaly(grid, p.left(), direction)
         }
         _ => panic!(),
     }
 }
 
-fn move_box_verticaly(grid: &mut [[u8; 2 * SIZE]; SIZE], b: (i32, i32), direction: (i32, i32)) {
-    match grid[b.1 as usize][b.0 as usize] {
+fn move_box_verticaly(grid: &mut [[u8; 2 * SIZE]; SIZE], p: Point, direction: u8) {
+    match grid[p.1][p.0] {
         b'#' => (),
         b'.' => (),
         b'[' => {
-            move_box_verticaly(grid, (b.0, b.1 + direction.1), direction);
-            move_box_verticaly(grid, (b.0 + 1, b.1 + direction.1), direction);
+            let next_left = p.move_to(direction);
+            let next_right = next_left.right();
+            let p2 = p.right();
 
-            grid[b.1 as usize][b.0 as usize] = b'.';
-            grid[b.1 as usize][(b.0 + 1) as usize] = b'.';
-            grid[(b.1 + direction.1) as usize][b.0 as usize] = b'[';
-            grid[(b.1 + direction.1) as usize][(b.0 + 1) as usize] = b']';
+            move_box_verticaly(grid, next_left, direction);
+            move_box_verticaly(grid, next_right, direction);
+
+            grid[p.1][p.0] = b'.';
+            grid[p2.1][p2.0] = b'.';
+            grid[next_left.1][next_left.0] = b'[';
+            grid[next_right.1][next_right.0] = b']';
         }
         b']' => {
-            move_box_verticaly(grid, (b.0, b.1 + direction.1), direction);
-            move_box_verticaly(grid, (b.0 - 1, b.1 + direction.1), direction);
+            let next_right = p.move_to(direction);
+            let next_left = next_right.left();
+            let p2 = p.left();
 
-            grid[b.1 as usize][b.0 as usize] = b'.';
-            grid[b.1 as usize][(b.0 - 1) as usize] = b'.';
-            grid[(b.1 + direction.1) as usize][b.0 as usize] = b']';
-            grid[(b.1 + direction.1) as usize][(b.0 - 1) as usize] = b'[';
+            move_box_verticaly(grid, next_right, direction);
+            move_box_verticaly(grid, next_left, direction);
+
+            grid[p.1][p.0] = b'.';
+            grid[p2.1][p2.0] = b'.';
+            grid[next_left.1][next_left.0] = b'[';
+            grid[next_right.1][next_right.0] = b']';
         }
         _ => panic!(),
     }
 }
 
-fn walk2(grid: &mut [[u8; 2 * SIZE]; SIZE], robot: &mut (i32, i32), direction: u8) {
-    let direction = get_direction(direction);
-    let (nextx, nexty) = (robot.0 + direction.0, robot.1 + direction.1);
+fn walk2(grid: &mut [[u8; 2 * SIZE]; SIZE], robot: Point, direction: u8) -> Point {
+    let next = robot.move_to(direction);
 
-    if direction.1 == 0 {
+    if direction == b'<' || direction == b'>' {
         // horizontal
-        if move_box_horizontaly(grid, (nextx, nexty), direction) {
-            grid[nexty as usize][nextx as usize] = b'.';
-            *robot = (nextx, nexty);
+        if move_box_horizontaly(grid, next, direction) {
+            grid[next.1][next.0] = b'.';
+            return next;
         }
     } else {
         // vertical
-        if can_move_box_verticaly(grid, (nextx, nexty), direction) {
-            move_box_verticaly(grid, (nextx, nexty), direction);
-            *robot = (nextx, nexty);
+        if can_move_box_verticaly(grid, next, direction) {
+            move_box_verticaly(grid, next, direction);
+            return next;
         }
     }
+
+    robot
 }
 
 #[cfg(test)]
-fn print_grid2(grid: &[[u8; 2 * SIZE]; SIZE], robot: &(i32, i32)) {
+fn print_grid(grid: &[[u8; 2 * SIZE]; SIZE], robot: &Point) {
     for (y, line) in grid.iter().enumerate() {
         for (x, &c) in line.iter().enumerate() {
-            if robot.0 as usize == x && robot.1 as usize == y {
+            if robot.0 == x && robot.1 == y {
                 print!("@");
             } else {
                 print!("{}", c as char);
@@ -173,20 +162,17 @@ fn print_grid2(grid: &[[u8; 2 * SIZE]; SIZE], robot: &(i32, i32)) {
 }
 
 #[cfg(not(test))]
-fn print_grid2(_grid: &[[u8; 2 * SIZE]; SIZE], _robot: &(i32, i32)) {}
+fn print_grid(_grid: &[[u8; 2 * SIZE]; SIZE], _robot: &Point) {}
 
-fn gps_boxes2(grid: &[[u8; 2 * SIZE]; SIZE]) -> usize {
+fn gps_boxes(grid: &[[u8; 2 * SIZE]; SIZE]) -> usize {
     grid.iter().enumerate().fold(0, |acc, (y, line)| {
-        line.iter().enumerate().fold(
-            acc,
-            |a, (x, &c)| {
-                if c == b'[' {
-                    a + y * 100 + x
-                } else {
-                    a
-                }
-            },
-        )
+        line.iter().enumerate().fold(acc, |a, (x, &c)| {
+            if c == b'[' || c == b'O' {
+                a + y * 100 + x
+            } else {
+                a
+            }
+        })
     })
 }
 
@@ -194,10 +180,10 @@ fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut grid: [[u8; SIZE]; SIZE] = [[b'.'; SIZE]; SIZE];
+    let mut grid: [[u8; 2 * SIZE]; SIZE] = [[b'.'; 2 * SIZE]; SIZE];
     let mut grid2: [[u8; 2 * SIZE]; SIZE] = [[b'.'; 2 * SIZE]; SIZE];
-    let mut robot = (0, 0);
-    let mut robot2 = (0, 0);
+    let mut robot = Point(0, 0);
+    let mut robot2 = Point(0, 0);
     let mut is_direction = false;
 
     for (y, line) in lines.enumerate() {
@@ -211,8 +197,8 @@ where
         if !is_direction {
             for (x, &c) in line.as_bytes().iter().enumerate() {
                 if c == b'@' {
-                    robot = (x as i32, y as i32);
-                    robot2 = ((x * 2) as i32, y as i32);
+                    robot = Point(x, y);
+                    robot2 = Point(x * 2, y);
                 } else if c != b'.' {
                     grid[y][x] = c;
                     match c {
@@ -230,16 +216,16 @@ where
             }
         } else {
             for &d in line.as_bytes().iter() {
-                walk(&mut grid, &mut robot, d);
-                walk2(&mut grid2, &mut robot2, d);
+                robot = walk(&mut grid, robot, d);
+                robot2 = walk2(&mut grid2, robot2, d);
             }
         }
     }
 
     print_grid(&grid, &robot);
-    print_grid2(&grid2, &robot2);
+    print_grid(&grid2, &robot2);
 
-    (gps_boxes(&grid), gps_boxes2(&grid2))
+    (gps_boxes(&grid), gps_boxes(&grid2))
 }
 
 #[test]
