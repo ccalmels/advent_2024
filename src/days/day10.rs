@@ -4,41 +4,41 @@ const SIZE: usize = if cfg!(test) { 8 } else { 53 };
 const S: i32 = SIZE as i32;
 const DIRS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, 1), (0, -1)];
 
-fn trailheads(zero: &(i32, i32), grid: &[[u8; SIZE]; SIZE]) -> (usize, usize) {
-    let mut stack = vec![(zero.0, zero.1, 0)];
-    let mut nines = [[false; SIZE]; SIZE];
-    let (mut p1, mut p2) = (0, 0);
+fn trailheads(
+    (x, y): (i32, i32),
+    grid: &[[u8; SIZE]; SIZE],
+    nines: &mut [[bool; SIZE]; SIZE],
+    (p1, p2): (usize, usize),
+) -> (usize, usize) {
+    let h = grid[y as usize][x as usize];
 
-    while let Some((x, y, h)) = stack.pop() {
-        for elem in DIRS.iter().filter_map(|(dx, dy)| {
-            let (next_x, next_y) = (x + dx, y + dy);
+    DIRS.iter().fold((p1, p2), |(acc1, acc2), (dx, dy)| {
+        let (next_x, next_y) = (x + dx, y + dy);
 
-            if next_x < 0 || next_y < 0 || next_x >= S || next_y >= S {
-                None
-            } else {
-                let next_h = grid[next_y as usize][next_x as usize];
-
-                if next_h == h + 1 {
-                    if next_h == 9 {
-                        p2 += 1;
-                        if !nines[next_y as usize][next_x as usize] {
-                            nines[next_y as usize][next_x as usize] = true;
-                            p1 += 1;
-                        }
-                        None
-                    } else {
-                        Some((next_x, next_y, next_h))
-                    }
-                } else {
-                    None
-                }
-            }
-        }) {
-            stack.push(elem);
+        if next_x < 0 || next_y < 0 || next_x >= S || next_y >= S {
+            return (acc1, acc2);
         }
-    }
 
-    (p1, p2)
+        let next_h = grid[next_y as usize][next_x as usize];
+
+        if next_h != h + 1 {
+            return (acc1, acc2);
+        }
+
+        if next_h == 9 {
+            (
+                if !nines[next_y as usize][next_x as usize] {
+                    nines[next_y as usize][next_x as usize] = true;
+                    acc1 + 1
+                } else {
+                    acc1
+                },
+                acc2 + 1,
+            )
+        } else {
+            trailheads((next_x, next_y), grid, nines, (acc1, acc2))
+        }
+    })
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
@@ -63,9 +63,8 @@ where
     }
 
     zeroes.into_iter().fold((0, 0), |(part1, part2), zero| {
-        let (p1, p2) = trailheads(&zero, &grid);
-
-        (part1 + p1, part2 + p2)
+        let mut nines = [[false; SIZE]; SIZE];
+        trailheads(zero, &grid, &mut nines, (part1, part2))
     })
 }
 
