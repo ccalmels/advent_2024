@@ -136,10 +136,10 @@ impl Computer {
             return vec![0];
         }
 
-        let mut ret = vec![];
-
-        for next in self.get_register_a_values(n - 1) {
-            for i in 0..8 {
+        self.get_register_a_values(n - 1)
+            .iter()
+            .flat_map(|&next| (0..8).map(move |i| (next, i)))
+            .filter_map(|(next, i)| {
                 let a = (next << 3) + i;
 
                 self.run([a, 0, 0]);
@@ -147,12 +147,12 @@ impl Computer {
                 let is_ok = self.out.len() == n && self.match_the_end();
 
                 if is_ok {
-                    ret.push(a);
+                    Some(a)
+                } else {
+                    None
                 }
-            }
-        }
-
-        ret
+            })
+            .collect()
     }
 
     fn get_register_a_value(&mut self) -> u64 {
