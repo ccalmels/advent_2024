@@ -6,10 +6,8 @@ const SIZE: usize = if cfg!(test) { 7 } else { 71 };
 const S: i32 = SIZE as i32;
 const FALLEN: usize = if cfg!(test) { 12 } else { 1024 };
 
-type Point = (i32, i32);
-
 #[derive(Debug, Eq, PartialEq)]
-struct Path(Point, usize);
+struct Path((i32, i32), usize);
 
 impl Ord for Path {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -23,40 +21,59 @@ impl PartialOrd for Path {
     }
 }
 
-fn dijkstra(memory: &[[u8; SIZE]; SIZE]) -> usize {
-    let mut heap = BinaryHeap::new();
-    let mut distances = [[usize::MAX; SIZE]; SIZE];
+fn dijkstra(memory: &[[u8; SIZE]; SIZE]) -> Vec<(usize, usize)> {
     const DIRS: [(i32, i32); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)];
+    let mut heap = BinaryHeap::new();
+    let mut distances = [[(usize::MAX, (0, 0)); SIZE]; SIZE];
+    let mut ret = vec![];
 
-    distances[0][0] = 0;
+    distances[0][0] = (0, (0, 0));
     heap.push(Path((0, 0), 0));
 
     while let Some(Path((x, y), distance)) = heap.pop() {
         if x == S - 1 && y == S - 1 {
-            return distance;
+            // at the end - reconstruct the path
+            let (d, p) = distances[y as usize][x as usize];
+
+            let mut x = p.0 as usize;
+            let mut y = p.1 as usize;
+
+            for _ in 0..d {
+                let p = distances[y][x].1;
+
+                x = p.0 as usize;
+                y = p.1 as usize;
+
+                ret.push((x, y));
+            }
+            assert_eq!((x, y), (0, 0));
+            break;
         }
 
         for (dx, dy) in DIRS {
             let (nextx, nexty) = (x + dx, y + dy);
 
+            // out of the memory grid
             if nextx < 0 || nexty < 0 || nextx >= S || nexty >= S {
                 continue;
             }
 
-            let (x, y) = (nextx as usize, nexty as usize);
+            let (nx, ny) = (nextx as usize, nexty as usize);
 
-            if memory[y][x] == b'#' {
+            // is a byte
+            if memory[ny][nx] == b'#' {
                 continue;
             }
 
-            if distance + 1 < distances[y][x] {
+            if distance + 1 < distances[ny][nx].0 {
                 heap.push(Path((nextx, nexty), distance + 1));
-                distances[y][x] = distance + 1;
+
+                distances[ny][nx] = (distance + 1, (x, y));
             }
         }
     }
 
-    usize::MAX
+    ret
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, String)
@@ -66,12 +83,9 @@ where
     let mut memory = [[b'.'; SIZE]; SIZE];
     let mut p1 = 0;
     let mut p2 = String::from("");
+    let mut previous = vec![];
 
     for (index, line) in lines.enumerate() {
-        if FALLEN == index {
-            p1 = dijkstra(&memory);
-        }
-
         let line = line.unwrap();
 
         let numbers: Vec<usize> = line
@@ -83,9 +97,17 @@ where
 
         memory[y][x] = b'#';
 
-        if FALLEN < index && dijkstra(&memory) == usize::MAX {
-            p2 = line;
-            break;
+        if FALLEN == index + 1 {
+            previous = dijkstra(&memory);
+            p1 = previous.len();
+        } else if FALLEN <= index && previous.contains(&(x, y)) {
+            let points = dijkstra(&memory);
+
+            if points.is_empty() {
+                p2 = line;
+                break;
+            }
+            previous = points;
         }
     }
 
