@@ -1,69 +1,238 @@
-use std::collections::{HashSet, VecDeque};
 use std::io::{BufRead, Lines};
 
 const SIZE: usize = if cfg!(test) { 15 } else { 141 };
 const S: i32 = SIZE as i32;
-const SAVE: usize = if cfg!(test) { 50 } else { 100 };
-const DIRS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, 1), (0, -1)];
+const SAVE: i32 = if cfg!(test) { 50 } else { 100 };
 
 type Point = (i32, i32);
 
-fn bfs(
-    racetrack: &[[u8; SIZE]; SIZE],
-    start: (i32, i32),
-    limit: usize,
-) -> HashSet<(Point, usize)> {
-    let mut queue = VecDeque::from([(start, 0)]);
-    let mut distances = [[usize::MAX; SIZE]; SIZE];
-    let mut points = HashSet::new();
+fn manathan(a: Point, b: Point) -> u32 {
+    a.0.abs_diff(b.0) + a.1.abs_diff(b.1)
+}
 
-    distances[start.1 as usize][start.0 as usize] = 0;
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
 
-    while let Some((pos, distance)) = queue.pop_back() {
-        //        println!("{pos:?} => {distance}");
+impl Direction {
+    fn new() -> Self {
+        Direction::Up
+    }
 
-        let distance = distance + 1;
-        if distance > limit {
-            continue;
-        }
-
-        for (dx, dy) in DIRS {
-            let next = (pos.0 + dx, pos.1 + dy);
-
-            if next == start {
-                continue;
-            }
-
-            if next.0 < 0 || next.1 < 0 || next.0 >= S || next.1 >= S {
-                continue;
-            }
-
-            let n = (next.0 as usize, next.1 as usize);
-            let d = distances[n.1][n.0];
-
-            if distance < d {
-                distances[n.1][n.0] = distance;
-
-                if racetrack[n.1][n.0] == b'.' {
-                    if distance > 1 {
-                        assert!(!points.contains(&(next, distance)));
-                        points.insert((next, distance));
-                    }
-                }
-                queue.push_front((next, distance));
-            }
+    fn turn_right(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Right,
+            Direction::Right => Direction::Down,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
         }
     }
 
-    points
+    fn turn_left(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Left,
+            Direction::Right => Direction::Up,
+            Direction::Down => Direction::Right,
+            Direction::Left => Direction::Down,
+        }
+    }
+
+    fn next(&self, (x, y): Point) -> Point {
+        match self {
+            Direction::Up => (x, y - 1),
+            Direction::Right => (x + 1, y),
+            Direction::Down => (x, y + 1),
+            Direction::Left => (x - 1, y),
+        }
+    }
+
+    fn get_deltas(&self) -> [Point; 41] {
+        match self {
+            Direction::Up => [
+                (-20, -0),
+                (-19, -1),
+                (-18, -2),
+                (-17, -3),
+                (-16, -4),
+                (-15, -5),
+                (-14, -6),
+                (-13, -7),
+                (-12, -8),
+                (-11, -9),
+                (-10, -10),
+                (-9, -11),
+                (-8, -12),
+                (-7, -13),
+                (-6, -14),
+                (-5, -15),
+                (-4, -16),
+                (-3, -17),
+                (-2, -18),
+                (-1, -19),
+                (0, -20),
+                (1, -19),
+                (2, -18),
+                (3, -17),
+                (4, -16),
+                (5, -15),
+                (6, -14),
+                (7, -13),
+                (8, -12),
+                (9, -11),
+                (10, -10),
+                (11, -9),
+                (12, -8),
+                (13, -7),
+                (14, -6),
+                (15, -5),
+                (16, -4),
+                (17, -3),
+                (18, -2),
+                (19, -1),
+                (20, -0),
+            ],
+            Direction::Right => [
+                (0, -20),
+                (1, -19),
+                (2, -18),
+                (3, -17),
+                (4, -16),
+                (5, -15),
+                (6, -14),
+                (7, -13),
+                (8, -12),
+                (9, -11),
+                (10, -10),
+                (11, -9),
+                (12, -8),
+                (13, -7),
+                (14, -6),
+                (15, -5),
+                (16, -4),
+                (17, -3),
+                (18, -2),
+                (19, -1),
+                (20, 0),
+                (19, 1),
+                (18, 2),
+                (17, 3),
+                (16, 4),
+                (15, 5),
+                (14, 6),
+                (13, 7),
+                (12, 8),
+                (11, 9),
+                (10, 10),
+                (9, 11),
+                (8, 12),
+                (7, 13),
+                (6, 14),
+                (5, 15),
+                (4, 16),
+                (3, 17),
+                (2, 18),
+                (1, 19),
+                (0, 20),
+            ],
+            Direction::Down => [
+                (-20, 0),
+                (-19, 1),
+                (-18, 2),
+                (-17, 3),
+                (-16, 4),
+                (-15, 5),
+                (-14, 6),
+                (-13, 7),
+                (-12, 8),
+                (-11, 9),
+                (-10, 10),
+                (-9, 11),
+                (-8, 12),
+                (-7, 13),
+                (-6, 14),
+                (-5, 15),
+                (-4, 16),
+                (-3, 17),
+                (-2, 18),
+                (-1, 19),
+                (0, 20),
+                (1, 19),
+                (2, 18),
+                (3, 17),
+                (4, 16),
+                (5, 15),
+                (6, 14),
+                (7, 13),
+                (8, 12),
+                (9, 11),
+                (10, 10),
+                (11, 9),
+                (12, 8),
+                (13, 7),
+                (14, 6),
+                (15, 5),
+                (16, 4),
+                (17, 3),
+                (18, 2),
+                (19, 1),
+                (20, 0),
+            ],
+            Direction::Left => [
+                (-0, -20),
+                (-1, -19),
+                (-2, -18),
+                (-3, -17),
+                (-4, -16),
+                (-5, -15),
+                (-6, -14),
+                (-7, -13),
+                (-8, -12),
+                (-9, -11),
+                (-10, -10),
+                (-11, -9),
+                (-12, -8),
+                (-13, -7),
+                (-14, -6),
+                (-15, -5),
+                (-16, -4),
+                (-17, -3),
+                (-18, -2),
+                (-19, -1),
+                (-20, 0),
+                (-19, 1),
+                (-18, 2),
+                (-17, 3),
+                (-16, 4),
+                (-15, 5),
+                (-14, 6),
+                (-13, 7),
+                (-12, 8),
+                (-11, 9),
+                (-10, 10),
+                (-9, 11),
+                (-8, 12),
+                (-7, 13),
+                (-6, 14),
+                (-5, 15),
+                (-4, 16),
+                (-3, 17),
+                (-2, 18),
+                (-1, 19),
+                (-0, 20),
+            ],
+        }
+    }
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut racetrack = [[b'.'; SIZE]; SIZE];
-    let mut courses = [[usize::MAX; SIZE]; SIZE];
+    let mut racetrack = [[i32::MIN; SIZE]; SIZE];
     let mut pos = (0, 0);
     let mut end = (0, 0);
 
@@ -72,8 +241,11 @@ where
 
         for (x, &c) in line.as_bytes().iter().enumerate() {
             match c {
-                b'#' => racetrack[y][x] = c,
-                b'S' => pos = (x as i32, y as i32),
+                b'#' => racetrack[y][x] = i32::MAX,
+                b'S' => {
+                    racetrack[y][x] = 0;
+                    pos = (x as i32, y as i32)
+                }
                 b'E' => end = (x as i32, y as i32),
                 b'.' => (),
                 _ => panic!(),
@@ -81,58 +253,69 @@ where
         }
     }
 
-    let mut course = 0;
-    courses[pos.1 as usize][pos.0 as usize] = 0;
-
     let mut p1 = 0;
     let mut p2 = 0;
+    let mut time = 0;
+    let mut direction = Direction::new();
+    let mut points = vec![];
 
-    loop {
-        course += 1;
+    while pos != end {
+        points.push((pos, time));
+        time += 1;
 
-        // get next position
-        for (dx, dy) in DIRS {
-            let next = (pos.0 + dx, pos.1 + dy);
+        for d in [direction, direction.turn_left(), direction.turn_right()] {
+            let next = d.next(pos);
             let n = (next.0 as usize, next.1 as usize);
 
-            if racetrack[n.1][n.0] == b'.' {
-                if courses[n.1][n.0] > course {
-                    courses[n.1][n.0] = course;
-                    pos = next;
-                    break;
-                }
+            if racetrack[n.1][n.0] != i32::MAX {
+                racetrack[n.1][n.0] = time;
+                direction = d;
+                pos = next;
+                break;
             }
         }
 
-        for (start, distance) in bfs(&racetrack, pos, 20) {
-            let s = (start.0 as usize, start.1 as usize);
-            let s = courses[s.1][s.0];
-            let e = course;
+        // add new points
+        for (dx, dy) in direction.get_deltas() {
+            let p = (pos.0 + dx, pos.1 + dy);
 
-            if s == usize::MAX {
+            if p.0 < 0 || p.1 < 0 || p.0 >= S || p.1 >= S {
                 continue;
             }
 
-            if e > s + distance {
-                let save = e - s - distance;
+            let race = racetrack[p.1 as usize][p.0 as usize];
 
-                //println!("save: {save}/{distance} : {start:?}({s}) -> {pos:?}({e})");
-
-                if save >= SAVE {
-                    if distance == 2 {
-                        p1 += 1;
-                    }
-                    p2 += 1;
-                }
+            if race == i32::MAX || race == i32::MIN {
+                continue;
             }
+
+            points.push((p, race));
         }
 
-        if pos == end {
-            break;
-        }
+        // for all points remove points that are too far and compute saved
+        points = points
+            .into_iter()
+            .filter_map(|(p, race)| {
+                let distance = manathan(p, pos);
+
+                if distance > 20 {
+                    None
+                } else {
+                    if distance > 1 {
+                        let saved = time - race - distance as i32;
+
+                        if saved >= SAVE {
+                            if distance == 2 {
+                                p1 += 1;
+                            }
+                            p2 += 1;
+                        }
+                    }
+                    Some((p, race))
+                }
+            })
+            .collect();
     }
-
-    //    println!("course: {course}");
 
     (p1, p2)
 }
