@@ -73,13 +73,16 @@ where
     let res = buyers.into_par_iter().map(compute_buyer).reduce(
         || (0, HashMap::new()),
         |mut a: (u64, HashMap<u32, i32>), b: (u64, HashMap<u32, i32>)| {
-            a.0 += b.0;
+            if a.1.is_empty() {
+                b
+            } else {
+                a.0 += b.0;
 
-            for (k, v) in b.1 {
-                *a.1.entry(k).or_default() += v;
+                for (k, v) in b.1 {
+                    *a.1.entry(k).or_default() += v;
+                }
+                a
             }
-
-            a
         },
     );
 
