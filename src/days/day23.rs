@@ -1,6 +1,35 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
+fn bron_kernbosch(
+    connections: &HashMap<u16, HashSet<u16>>,
+    r: HashSet<u16>,
+    mut p: HashSet<u16>,
+    mut x: HashSet<u16>,
+    max_clique: &mut HashSet<u16>,
+) {
+    if p.is_empty() && x.is_empty() {
+        if max_clique.len() < r.len() {
+            *max_clique = r;
+        }
+        return;
+    }
+
+    for v in p.clone() {
+        let mut r2 = r.clone();
+        r2.insert(v);
+
+        let neighbors = connections.get(&v).unwrap();
+        let p2 = p.intersection(neighbors).cloned().collect();
+        let x2 = x.intersection(neighbors).cloned().collect();
+
+        bron_kernbosch(connections, r2, p2, x2, max_clique);
+
+        p.remove(&v);
+        x.insert(v);
+    }
+}
+
 fn resolve<T>(lines: Lines<T>) -> (usize, String)
 where
     T: BufRead,
@@ -18,67 +47,54 @@ where
         connections.entry(b).or_default().insert(a);
     }
 
-    const T: u16 = b't' as u16;
-    let mut p1 = 0;
+    const T: u16 = (b't' as u16) << 8;
 
-    let mut lans: Vec<HashSet<u16>> = vec![];
+    let mut p1 = 0;
 
     for (k, v) in &connections {
         for i in v {
-            if let Some(set) = connections.get(i) {
-                let inter = set.intersection(v).collect::<Vec<_>>();
+            if i < k {
+                continue;
+            }
 
-                if k >> 8 == T || i >> 8 == T {
-                    p1 += inter.len();
-                } else {
-                    for j in inter {
-                        if j >> 8 == T {
-                            p1 += 1;
-                        }
+            if let Some(set) = connections.get(i) {
+                for j in set.intersection(v) {
+                    if j < i {
+                        continue;
+                    }
+
+                    if (*k & 0xff00) == T || (*i & 0xff00) == T || (*j & 0xff00) == T {
+                        p1 += 1;
                     }
                 }
             }
         }
-
-        let mut to_add = vec![HashSet::new()];
-
-        for l in &mut lans {
-            if l.is_subset(v) {
-                to_add.push(l.clone());
-            }
-        }
-
-        for mut add in to_add {
-            add.insert(*k);
-            lans.push(add);
-        }
     }
 
-    let mut max = 0;
-    let mut max_index = 0;
+    let p: HashSet<u16> = connections.keys().cloned().collect();
+    let r = HashSet::new();
+    let x = HashSet::new();
+    let mut max_clique = HashSet::new();
 
-    for (index, lan) in lans.iter().enumerate() {
-        if lan.len() > max {
-            max_index = index;
-            max = lan.len();
-        }
-    }
+    bron_kernbosch(&connections, r, p, x, &mut max_clique);
 
-    let mut res: Vec<u16> = lans[max_index].clone().into_iter().collect();
-    res.sort_unstable();
+    let mut points: Vec<u16> = max_clique.into_iter().collect();
+
+    points.sort_unstable();
 
     let mut p2 = String::from("");
-    for c in res {
-        let cs: [u8; 2] = [(c >> 8) as u8, (c & 0xff) as u8];
 
+    for p in points {
         p2 = format!(
-            "{p2}{}{}",
+            "{}{}{}{}",
+            p2,
             if p2.is_empty() { "" } else { "," },
-            std::str::from_utf8(&cs).unwrap()
+            (p >> 8) as u8 as char,
+            (p & 0xff) as u8 as char
         );
     }
 
-    (p1 / 6, p2)
+    (p1, p2)
 }
 
 #[test]
