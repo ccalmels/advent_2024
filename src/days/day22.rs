@@ -40,10 +40,13 @@ fn check_next_secret() {
     );
 }
 
-fn compute_buyer(mut secret: Secret) -> (u64, HashMap<u32, i32>) {
+type Buyer = ((u64, i32), HashMap<u32, i32>);
+
+fn compute_buyer(mut secret: Secret) -> Buyer {
     let mut seq: u32 = 0;
     let mut prev = (secret as i32) % 10;
-    let mut prices: HashMap<u32, i32> = HashMap::new();
+    let mut prices = HashMap::new();
+    let mut max = 0;
 
     for i in 0..2000 {
         secret = next_secret(secret);
@@ -52,47 +55,47 @@ fn compute_buyer(mut secret: Secret) -> (u64, HashMap<u32, i32>) {
 
         seq = (seq << 8) | ((price - prev) as u8) as u32;
 
+        prev = price;
+
         if i > 2 {
             prices.entry(seq).or_insert(price);
-        }
 
-        prev = price;
+            max = max.max(price);
+        }
     }
 
-    (secret as u64, prices)
+    ((secret as u64, max), prices)
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u64, i32)
 where
     T: BufRead,
 {
-    let buyers = lines
+    lines
         .map(|line| line.unwrap().parse::<u32>().unwrap())
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(compute_buyer)
+        .reduce(
+            || ((0, 0), HashMap::new()),
+            |mut a: Buyer, b: Buyer| {
+                if a.1.is_empty() {
+                    b
+                } else {
+                    a.0 .0 += b.0 .0;
 
-    let res = buyers.into_par_iter().map(compute_buyer).reduce(
-        || (0, HashMap::new()),
-        |mut a: (u64, HashMap<u32, i32>), b: (u64, HashMap<u32, i32>)| {
-            if a.1.is_empty() {
-                b
-            } else {
-                a.0 += b.0;
+                    for (k, v) in b.1 {
+                        let e = a.1.entry(k).or_default();
 
-                for (k, v) in b.1 {
-                    *a.1.entry(k).or_default() += v;
+                        *e += v;
+
+                        a.0 .1 = a.0 .1.max(*e);
+                    }
+                    a
                 }
-                a
-            }
-        },
-    );
-
-    let mut p2 = 0;
-
-    for &r in res.1.values() {
-        p2 = p2.max(r);
-    }
-
-    (res.0, p2)
+            },
+        )
+        .0
 }
 
 #[test]
