@@ -9,25 +9,21 @@ struct Pad {
     dead: Point,
 }
 
-fn directional_get_point(key: u8) -> Point {
-    match key {
+const DIRECTIONAL: Pad = Pad {
+    get_point: |key| match key {
         b'^' => (1, 0),
         b'A' => (2, 0),
         b'<' => (0, 1),
         b'v' => (1, 1),
         b'>' => (2, 1),
         _ => panic!(),
-    }
-}
-
-const DIRECTIONAL: Pad = Pad {
-    get_point: directional_get_point,
+    },
     initial: (2, 0),
     dead: (0, 0),
 };
 
-fn numerical_get_point(key: u8) -> Point {
-    match key {
+const NUMERICAL: Pad = Pad {
+    get_point: |key| match key {
         b'7' => (0, 0),
         b'8' => (1, 0),
         b'9' => (2, 0),
@@ -40,11 +36,7 @@ fn numerical_get_point(key: u8) -> Point {
         b'0' => (1, 3),
         b'A' => (2, 3),
         _ => panic!(),
-    }
-}
-
-const NUMERICAL: Pad = Pad {
-    get_point: numerical_get_point,
+    },
     initial: (2, 3),
     dead: (0, 3),
 };
