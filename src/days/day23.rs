@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
+/*
+ * https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
+ */
 fn bron_kernbosch(
     connections: &HashMap<u16, HashSet<u16>>,
     r: HashSet<u16>,
