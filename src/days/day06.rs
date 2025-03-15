@@ -1,6 +1,8 @@
 use rayon::prelude::*;
-use std::collections::HashMap;
 use std::io::{BufRead, Lines};
+
+const SIZE: usize = if cfg!(test) { 10 } else { 130 };
+const S: i32 = SIZE as i32;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum Direction {
@@ -52,21 +54,16 @@ fn check_direction() {
 }
 
 struct Map {
-    grid: Vec<Vec<u8>>,
-    w: i32,
-    h: i32,
+    grid: [[u8; SIZE]; SIZE],
 }
 
 impl Map {
-    fn new(grid: Vec<Vec<u8>>) -> Self {
-        let w = grid[0].len() as i32;
-        let h = grid.len() as i32;
-
-        Map { grid, w, h }
+    fn new(grid: [[u8; SIZE]; SIZE]) -> Self {
+        Map { grid }
     }
 
     fn get(&self, (x, y): (i32, i32)) -> Option<u8> {
-        if x < 0 || y < 0 || x >= self.w || y >= self.h {
+        if x < 0 || y < 0 || x >= S || y >= S {
             None
         } else {
             Some(self.grid[y as usize][x as usize])
@@ -80,11 +77,11 @@ impl Map {
 
 #[test]
 fn check_map() {
-    let grid = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
+    let grid = [[4; SIZE]; SIZE];
     let mut map = Map::new(grid);
 
     assert_eq!(map.get((-1, 0)), None);
-    assert_eq!(map.get((0, 3)), None);
+    assert_eq!(map.get((0, S)), None);
     assert_eq!(map.get((1, 1)), Some(4));
 
     map.set((1, 1), 99);
@@ -98,7 +95,7 @@ fn check_loop(
     mut guard: (i32, i32),
     mut direction: Direction,
 ) -> bool {
-    let mut dirs: HashMap<(i32, i32), u8> = HashMap::new();
+    let mut dirs: [[u8; SIZE]; SIZE] = [[0; SIZE]; SIZE];
 
     loop {
         let next_position = direction.next(guard);
@@ -107,13 +104,13 @@ fn check_loop(
             if v == b'#' || next_position == blocker {
                 direction = direction.turn_right();
             } else {
-                let hentry = dirs.entry(next_position).or_default();
+                let entry = &mut dirs[next_position.1 as usize][next_position.0 as usize];
                 let m = direction.mask();
 
-                if *hentry & m == m {
+                if *entry & m == m {
                     return true;
                 } else {
-                    *hentry |= m;
+                    *entry |= m;
                 }
 
                 guard = next_position;
@@ -149,20 +146,19 @@ fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut grid = vec![];
+    let mut grid = [[0; SIZE]; SIZE];
     let mut guard = (0i32, 0i32);
     let mut direction = Direction::new();
 
-    for line in lines {
+    for (y, line) in lines.enumerate() {
         let line = line.unwrap();
 
-        let index = line.as_bytes().iter().position(|&v| v == b'^');
-
-        if let Some(index) = index {
-            guard = (index as i32, grid.len() as i32);
+        for (x, &c) in line.as_bytes().iter().enumerate() {
+            if c == b'^' {
+                guard = (x as i32, y as i32);
+            }
+            grid[y][x] = c;
         }
-
-        grid.push(line.as_bytes().to_owned());
     }
 
     let mut map = Map::new(grid);
