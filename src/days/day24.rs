@@ -87,9 +87,7 @@ where
         return (p1, String::from(""));
     }
 
-    /*
-     * https://www.101computing.net/binary-additions-using-logic-gates/
-     */
+    // https://www.101computing.net/binary-additions-using-logic-gates/
     let mut inverted = vec![];
     let mut x = convert(b"x00");
     let mut y = convert(b"y00");
@@ -114,12 +112,10 @@ where
         let s2 = if let Some(v) = inverted_tree.get(&Operation::Xor(a, b)) {
             *v
         } else {
-            /*
-             * Here we want to know if the bad wire is s1 or cin so
-             * let's look up the other way by checking z
-             *
-             * This code is ugly.
-             */
+            // Here we want to know if the bad wire is s1 or cin so
+            // let's look up the other way by checking z
+            //
+            // This code is ugly.
             if let Some(Operation::Xor(left, right)) = tree.get(&z) {
                 let (i, j): (&mut u32, &u32);
 
