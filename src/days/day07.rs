@@ -82,23 +82,26 @@ where
             .filter_map(|s| s.parse().ok())
             .collect();
 
+        let p1_ok = operation_recurs(
+            splitted[0],
+            splitted[1],
+            &splitted[2..],
+            &[Operation::Add, Operation::Multiply],
+        );
+        let p2_ok = p1_ok || operation_recurs(
+            splitted[0],
+            splitted[1],
+            &splitted[2..],
+            &[Operation::Add, Operation::Multiply, Operation::Concatenate],
+        );
+
         (
-            if operation_recurs(
-                splitted[0],
-                splitted[1],
-                &splitted[2..],
-                &[Operation::Add, Operation::Multiply],
-            ) {
+            if p1_ok {
                 p1 + splitted[0]
             } else {
                 p1
             },
-            if operation_recurs(
-                splitted[0],
-                splitted[1],
-                &splitted[2..],
-                &[Operation::Add, Operation::Multiply, Operation::Concatenate],
-            ) {
+            if p2_ok {
                 p2 + splitted[0]
             } else {
                 p2
