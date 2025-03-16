@@ -1,114 +1,127 @@
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 
-fn point_is_close((ax, ay): (usize, usize), (bx, by): (usize, usize)) -> bool {
-    ax.abs_diff(bx) + ay.abs_diff(by) == 1
-}
+const SIZE: usize = if cfg!(test) { 10 } else { 140 };
+const S: i32 = SIZE as i32;
 
-fn space_is_close(plot: (usize, usize), space: &[(usize, usize)]) -> bool {
-    space.iter().any(|&p| point_is_close(p, plot))
-}
+fn price(plots: &[((i32, i32), usize)]) -> (usize, usize) {
+    let mut p1 = plots.len() * 4;
+    let mut corners: HashMap<(i32, i32), u8> = HashMap::new();
+    const DELTAS: [(i32, i32, u8); 4] = [
+        (0, 0, 0b0001),
+        (1, 0, 0b0010),
+        (0, 1, 0b0100),
+        (1, 1, 0b1000),
+    ];
 
-fn found_regions(plots: &[(usize, usize)]) -> Vec<Vec<(usize, usize)>> {
-    let mut spaces: Vec<Vec<(usize, usize)>> = vec![];
+    for &(point, neighbors) in plots.iter() {
+        p1 -= neighbors;
 
-    for &p in plots {
-        let mut was_added = None;
+        for (dx, dy, mask) in DELTAS {
+            let corner = (point.0 + dx, point.1 + dy);
 
-        for i in (0..spaces.len()).rev() {
-            if space_is_close(p, &spaces[i]) {
-                if let Some(v) = was_added {
-                    let plots = spaces.remove(v);
-                    spaces[i].extend(plots);
-                } else {
-                    spaces[i].push(p);
-                }
-                was_added = Some(i);
-            }
-        }
-
-        if was_added.is_none() {
-            spaces.push(vec![p]);
+            *corners.entry(corner).or_default() |= mask;
         }
     }
 
-    spaces
-}
-
-#[test]
-fn check_found_regions() {
-    let plots = vec![(0, 0), (2, 0), (1, 0)];
-
-    assert_eq!(found_regions(&plots), vec![vec![(0, 0), (2, 0), (1, 0)]]);
-}
-
-fn price(plots: &[(usize, usize)]) -> (usize, usize) {
-    let mut p1 = 0;
-    let mut corners: HashMap<(usize, usize), Vec<(usize, usize)>> = HashMap::new();
-    const DELTAS: [(usize, usize); 4] = [(0, 0), (1, 0), (0, 1), (1, 1)];
-
-    for i in 0..plots.len() {
-        let mut spaces = 4;
-
-        for j in 0..plots.len() {
-            if point_is_close(plots[i], plots[j]) {
-                spaces -= 1;
-                if spaces == 0 {
-                    break;
-                }
-            }
-        }
-
-        p1 += spaces;
-
-        for (dx, dy) in DELTAS {
-            let corner = (plots[i].0 + dx, plots[i].1 + dy);
-
-            corners.entry(corner).or_default().push(plots[i]);
-        }
-    }
-
-    let p2 = corners.values().fold(0, |acc, neighbors| {
-        acc + match neighbors.len() {
-            4 => 0,
-            3 => 1,
-            2 => {
-                if point_is_close(neighbors[0], neighbors[1]) {
-                    0
-                } else {
-                    2
-                }
-            }
-            1 => 1,
-            _ => panic!(),
+    let p2 = corners.values().fold(0, |acc, &mask| {
+        acc + match mask {
+            0b1110 | 0b1101 | 0b1011 | 0b0111 => 1,
+            0b1001 | 0b0110 => 2,
+            0b0001 | 0b0010 | 0b0100 | 0b1000 => 1,
+            _ => 0,
         }
     });
 
     (p1, p2)
 }
 
+fn found_region_dfs(
+    grid: &mut [[u8; SIZE]; SIZE],
+    point: (i32, i32),
+    garden: u8,
+) -> Vec<((i32, i32), usize)> {
+    const DIRS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
+    let mut stack = vec![point];
+    let mut points = vec![];
+
+    while let Some((x, y)) = stack.pop() {
+        let mut count = 0;
+
+        for (dx, dy) in DIRS {
+            let p = (x + dx, y + dy);
+
+            if p.0 < 0 || p.1 < 0 || p.0 >= S || p.1 >= S {
+                continue;
+            }
+
+            let g = &mut grid[p.1 as usize][p.0 as usize];
+            let check_garden = *g ^ garden;
+
+            if check_garden == 1 << 5 {
+                // same region but already checked
+                count += 1;
+            } else if check_garden == 0 {
+                count += 1;
+
+                *g |= 1 << 5;
+
+                stack.push(p);
+            }
+        }
+        points.push(((x, y), count));
+    }
+
+    points
+}
+
+#[test]
+fn check_found_region_dfs() {
+    let mut grid = [[0; SIZE]; SIZE];
+
+    grid[0][0] = b'a';
+    grid[0][1] = b'A';
+    grid[0][2] = b'A';
+    grid[1][1] = b'A';
+    grid[2][2] = b'A';
+
+    let r = found_region_dfs(&mut grid, (0, 0), b'A');
+
+    assert_eq!(r, vec![((0, 0), 1), ((1, 0), 3), ((1, 1), 1), ((2, 0), 1)]);
+}
+
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut plants: HashMap<u8, Vec<(usize, usize)>> = HashMap::new();
+    let mut grid: [[u8; SIZE]; SIZE] = [[0; SIZE]; SIZE];
+    let mut regions: Vec<Vec<((i32, i32), usize)>> = vec![];
 
     for (y, line) in lines.enumerate() {
         let line = line.unwrap();
 
         for (x, &garden) in line.as_bytes().iter().enumerate() {
-            plants.entry(garden).or_default().push((x, y));
+            grid[y][x] = garden;
         }
     }
 
-    plants.values().fold((0, 0), |(part1, part2), plots| {
-        found_regions(plots)
-            .iter()
-            .fold((part1, part2), |(p1, p2), region| {
-                let price = price(region);
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            let garden = grid[y][x];
 
-                (p1 + region.len() * price.0, p2 + region.len() * price.1)
-            })
+            // check if its uppercase
+            if (garden & (1 << 5)) == 0 {
+                grid[y][x] |= 1 << 5;
+
+                regions.push(found_region_dfs(&mut grid, (x as i32, y as i32), garden))
+            }
+        }
+    }
+
+    regions.iter().fold((0, 0), |(p1, p2), r| {
+        let price = price(r);
+
+        (p1 + r.len() * price.0, p2 + r.len() * price.1)
     })
 }
 
@@ -130,7 +143,7 @@ AAA";
     use std::io::Cursor;
 
     assert_eq!(resolve(Cursor::new(TEST).lines()), (1930, 1206));
-    assert_eq!(resolve(Cursor::new(TEST1).lines()), (120, 78));
+    assert_eq!(resolve(Cursor::new(TEST1).lines()), (3760, 624));
 }
 
 fn resolve_string<T>(lines: Lines<T>) -> (String, String)
