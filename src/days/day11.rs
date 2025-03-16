@@ -34,7 +34,7 @@ fn check_split_stone() {
 #[cfg(test)]
 // tried this implementation, but it isn't faster
 fn split_stone2(n: usize) -> Option<usize> {
-    static CACHE: &[usize] = &[
+    const CACHE: &[usize] = &[
         0,
         10,
         100,
