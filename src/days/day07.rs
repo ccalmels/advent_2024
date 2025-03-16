@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::io::{BufRead, Lines};
 
 fn number_of_digits(n: u64) -> u64 {
@@ -75,39 +76,41 @@ fn resolve<T>(lines: Lines<T>) -> (u64, u64)
 where
     T: BufRead,
 {
-    lines.fold((0, 0), |(p1, p2), line| {
-        let splitted: Vec<u64> = line
-            .unwrap()
-            .split(&[':', ' '])
-            .filter_map(|s| s.parse().ok())
-            .collect();
+    let equations: Vec<Vec<u64>> = lines
+        .map(|line| {
+            line.unwrap()
+                .split(&[':', ' '])
+                .filter_map(|s| s.parse().ok())
+                .collect()
+        })
+        .collect();
 
-        let p1_ok = operation_recurs(
-            splitted[0],
-            splitted[1],
-            &splitted[2..],
-            &[Operation::Add, Operation::Multiply],
-        );
-        let p2_ok = p1_ok || operation_recurs(
-            splitted[0],
-            splitted[1],
-            &splitted[2..],
-            &[Operation::Add, Operation::Multiply, Operation::Concatenate],
-        );
+    equations
+        .into_par_iter()
+        .fold(
+            || (0, 0),
+            |(p1, p2), equation| {
+                let p1_ok = operation_recurs(
+                    equation[0],
+                    equation[1],
+                    &equation[2..],
+                    &[Operation::Add, Operation::Multiply],
+                );
+                let p2_ok = p1_ok
+                    || operation_recurs(
+                        equation[0],
+                        equation[1],
+                        &equation[2..],
+                        &[Operation::Add, Operation::Multiply, Operation::Concatenate],
+                    );
 
-        (
-            if p1_ok {
-                p1 + splitted[0]
-            } else {
-                p1
-            },
-            if p2_ok {
-                p2 + splitted[0]
-            } else {
-                p2
+                (
+                    if p1_ok { p1 + equation[0] } else { p1 },
+                    if p2_ok { p2 + equation[0] } else { p2 },
+                )
             },
         )
-    })
+        .reduce(|| (0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
 }
 
 #[test]
