@@ -7,26 +7,24 @@ fn check_design_count<'a>(
     cache: &mut HashMap<&'a [u8], usize>,
 ) -> usize {
     if design.is_empty() {
-        return 1;
+        1
+    } else if let Some(&n) = cache.get(design) {
+        n
+    } else {
+        let ret = patterns.iter().fold(0, |acc, p| {
+            let plen = p.len();
+
+            if design.len() < plen || *p != design[0..plen] {
+                acc
+            } else {
+                acc + check_design_count(patterns, &design[plen..], cache)
+            }
+        });
+
+        cache.insert(design, ret);
+
+        ret
     }
-
-    if let Some(&n) = cache.get(design) {
-        return n;
-    }
-
-    let ret = patterns.iter().fold(0, |acc, p| {
-        let plen = p.len();
-
-        if design.len() < plen || *p != design[0..plen] {
-            acc
-        } else {
-            acc + check_design_count(patterns, &design[plen..], cache)
-        }
-    });
-
-    cache.insert(design, ret);
-
-    ret
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
