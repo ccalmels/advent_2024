@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 
@@ -118,11 +119,17 @@ where
         }
     }
 
-    regions.iter().fold((0, 0), |(p1, p2), r| {
-        let price = price(r);
+    regions
+        .into_par_iter()
+        .fold(
+            || (0, 0),
+            |(p1, p2), r| {
+                let price = price(&r);
 
-        (p1 + r.len() * price.0, p2 + r.len() * price.1)
-    })
+                (p1 + r.len() * price.0, p2 + r.len() * price.1)
+            },
+        )
+        .reduce(|| (0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
 }
 
 #[test]
