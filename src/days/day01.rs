@@ -17,7 +17,7 @@ where
         left.push(a);
         right.push(b);
 
-        *counts.entry(b).or_insert(0) += 1;
+        *counts.entry(b).or_default() += 1;
     }
 
     let numbers = left.clone();
