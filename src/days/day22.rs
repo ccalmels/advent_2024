@@ -78,21 +78,22 @@ where
         .map(compute_buyer)
         .reduce(
             || ((0, 0), HashMap::new()),
-            |mut a: Buyer, b: Buyer| {
-                if a.1.is_empty() {
-                    b
+            |a: Buyer, b: Buyer| {
+                let (mut a, b) = if a.1.len() < b.1.len() {
+                    (b, a)
                 } else {
-                    a.0 .0 += b.0 .0;
+                    (a, b)
+                };
+                a.0 .0 += b.0 .0;
 
-                    for (k, v) in b.1 {
-                        let e = a.1.entry(k).or_default();
+                for (k, v) in b.1 {
+                    let e = a.1.entry(k).or_default();
 
-                        *e += v;
+                    *e += v;
 
-                        a.0 .1 = a.0 .1.max(*e);
-                    }
-                    a
+                    a.0 .1 = a.0 .1.max(*e);
                 }
+                a
             },
         )
         .0
