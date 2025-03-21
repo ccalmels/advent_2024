@@ -110,14 +110,12 @@ where
         .collect();
     let mut cache = HashMap::new();
 
-    (
-        stones
-            .iter()
-            .fold(0, |acc, &s| acc + number_of_stones(&mut cache, 25, s)),
-        stones
-            .iter()
-            .fold(0, |acc, &s| acc + number_of_stones(&mut cache, 75, s)),
-    )
+    stones.iter().fold((0, 0), |(p1, p2), &s| {
+        (
+            p1 + number_of_stones(&mut cache, 25, s),
+            p2 + number_of_stones(&mut cache, 75, s),
+        )
+    })
 }
 
 #[test]
