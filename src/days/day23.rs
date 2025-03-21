@@ -79,7 +79,7 @@ where
 
     bron_kernbosch(&connections, r, p, x, &mut max_clique);
 
-    let mut points: Vec<u16> = max_clique.into_iter().collect();
+    let mut points: Vec<u16> = Vec::from_iter(max_clique);
 
     points.sort_unstable();
 
