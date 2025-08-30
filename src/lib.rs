@@ -18,14 +18,14 @@ pub trait Paragrapher<T, F, O>
 where
     F: Fn(String) -> O,
 {
-    fn split_paragraph(&mut self, transfom: F) -> Paragraph<T, F, O>;
+    fn split_paragraph(&mut self, transfom: F) -> Paragraph<'_, T, F, O>;
 }
 
 impl<T, F, O> Paragrapher<T, F, O> for Lines<T>
 where
     F: Fn(String) -> O,
 {
-    fn split_paragraph(&mut self, transform: F) -> Paragraph<T, F, O> {
+    fn split_paragraph(&mut self, transform: F) -> Paragraph<'_, T, F, O> {
         Paragraph {
             lines: self,
             transform,
