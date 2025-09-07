@@ -1,6 +1,5 @@
 use curl::easy::Easy;
 use std::cmp::{Eq, Ord, Ordering};
-use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Lines, Write};
 use std::path::Path;
@@ -78,9 +77,9 @@ impl Day {
         }
     }
 
-    fn print(&self) {
+    fn print(&self, session: Option<&str>) {
         let start = Instant::now();
-        let (day_number, part1, part2) = self.resolve();
+        let (day_number, part1, part2) = self.resolve(session);
         let duration = start.elapsed();
 
         println!("day{day_number:0>2}: part1: {part1:20} part2: {part2:20} in {duration:?}");
@@ -93,9 +92,9 @@ impl Day {
             .unwrap()
     }
 
-    fn resolve(&self) -> (u32, String, String) {
+    fn resolve(&self, session: Option<&str>) -> (u32, String, String) {
         let day_number = self.parse_number();
-        let (part1, part2) = (self.resolve)(read_lines(day_number).unwrap());
+        let (part1, part2) = (self.resolve)(read_lines(session, day_number).unwrap());
         (day_number, part1, part2)
     }
 }
@@ -118,14 +117,19 @@ impl PartialOrd for Day {
     }
 }
 
-fn read_lines(day_number: u32) -> io::Result<io::Lines<io::BufReader<File>>> {
+fn read_lines(
+    session: Option<&str>,
+    day_number: u32,
+) -> io::Result<io::Lines<io::BufReader<File>>> {
     let filename = format!("./inputs/{day_number:0>2}.txt");
     let path = Path::new(&filename);
 
     if !path.exists() {
+        let session = session
+            .expect("set AOC session id using command line or AOC_SESSION environment variable");
+
         println!("downloading input for day {day_number}");
 
-        let session = env::var("AOC_SESSION").expect("AOC_SESSION not set");
         let mut file = File::create(path)?;
         let mut handle = Easy::new();
 
@@ -143,29 +147,29 @@ fn read_lines(day_number: u32) -> io::Result<io::Lines<io::BufReader<File>>> {
     Ok(io::BufReader::new(file).lines())
 }
 
-fn resolve_all() {
+fn resolve_all(session: Option<&str>) {
     let mut days: Vec<&'static Day> = inventory::iter::<Day>.into_iter().collect();
 
     days.sort_unstable();
 
-    days.iter().for_each(|d| d.print());
+    days.iter().for_each(|d| d.print(session));
 }
 
-fn resolve_one(day_number: u32) {
+fn resolve_one(session: Option<&str>, day_number: u32) {
     inventory::iter::<Day>
         .into_iter()
         .find(|d| d.parse_number() == day_number)
         .unwrap()
-        .print();
+        .print(session);
 }
 
-pub fn resolve(days: &[u32]) {
+pub fn resolve(session: Option<&str>, days: &[u32]) {
     let start = Instant::now();
 
     if days.is_empty() {
-        resolve_all();
+        resolve_all(session);
     } else {
-        days.iter().for_each(|&d| resolve_one(d));
+        days.iter().for_each(|&d| resolve_one(session, d));
     }
 
     let duration = start.elapsed();

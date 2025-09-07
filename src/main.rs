@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::env;
 mod days;
 
 #[derive(Parser)]
@@ -6,6 +7,12 @@ mod days;
 struct Args {
     #[arg(short, long, help = "limit the number of threads used by rayon")]
     nthreads: Option<usize>,
+    #[arg(
+        short,
+        long,
+        help = "Advent Of Code session ID for automatic downloading of inputs"
+    )]
+    session: Option<String>,
     #[arg(trailing_var_arg = true)]
     days: Vec<u32>,
 }
@@ -20,5 +27,7 @@ fn main() {
             .unwrap();
     }
 
-    advent_2024::resolve(&args.days);
+    let session = args.session.or(env::var("AOC_SESSION").ok());
+
+    advent_2024::resolve(session.as_deref(), &args.days);
 }
