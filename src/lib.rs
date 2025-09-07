@@ -47,7 +47,7 @@ where
             let line = line.unwrap();
 
             if line.is_empty() {
-                return Some(p);
+                break;
             }
 
             p.push((self.transform)(line));
