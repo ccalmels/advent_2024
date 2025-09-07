@@ -130,6 +130,15 @@ fn read_lines(
 
         println!("downloading input for day {day_number}");
 
+        // Try to create inputs directory
+        match std::fs::create_dir("./inputs") {
+            Ok(()) => {}
+            Err(error) => match error.kind() {
+                io::ErrorKind::AlreadyExists => {}
+                _ => panic!("unable to create ./inputs/ directory: {error}"),
+            },
+        }
+
         let mut file = File::create(path)?;
         let mut handle = Easy::new();
 
