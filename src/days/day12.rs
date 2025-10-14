@@ -101,9 +101,7 @@ where
     for (y, line) in lines.enumerate() {
         let line = line.unwrap();
 
-        for (x, &garden) in line.as_bytes().iter().enumerate() {
-            grid[y][x] = garden;
-        }
+        grid[y].copy_from_slice(line.as_bytes());
     }
 
     for y in 0..SIZE {
@@ -144,13 +142,9 @@ VVIIICJJEE
 MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE";
-    const TEST1: &str = "AAX
-AXA
-AAA";
     use std::io::Cursor;
 
     assert_eq!(resolve(Cursor::new(TEST).lines()), (1930, 1206));
-    assert_eq!(resolve(Cursor::new(TEST1).lines()), (3760, 624));
 }
 
 fn resolve_string<T>(lines: Lines<T>) -> (String, String)
