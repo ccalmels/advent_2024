@@ -46,8 +46,7 @@ fn print_bathroom(robots: &[Robot]) {
 }
 
 #[cfg(not(test))]
-fn print_bathroom(_robots: &[Robot]) {
-}
+fn print_bathroom(_robots: &[Robot]) {}
 
 fn compute_safety(robots: &[Robot]) -> usize {
     let mut squares = [0usize; 4];
