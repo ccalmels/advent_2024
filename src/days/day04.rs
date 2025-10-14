@@ -1,197 +1,66 @@
 use std::io::{BufRead, Lines};
 
-#[derive(Debug)]
-struct Xmas {
-    xmas_index: usize,
-    samx_index: usize,
-}
+const SIZE: usize = if cfg!(test) { 10 } else { 140 };
 
-const XMAS: [u8; 4] = [b'X', b'M', b'A', b'S'];
-
-impl Xmas {
-    fn new() -> Self {
-        Xmas {
-            xmas_index: 0,
-            samx_index: XMAS.len() - 1,
-        }
-    }
-
-    #[cfg(test)]
-    fn reset(&mut self) {
-        self.xmas_index = 0;
-        self.samx_index = XMAS.len() - 1;
-    }
-
-    fn consume(&mut self, c: u8) -> bool {
-        let mut ret = false;
-
-        if XMAS[self.xmas_index] == c {
-            if self.xmas_index == XMAS.len() - 1 {
-                self.xmas_index = 0;
-                ret = true;
-            } else {
-                self.xmas_index += 1;
-            }
-        } else {
-            self.xmas_index = 0;
-            if XMAS[self.xmas_index] == c {
-                self.xmas_index += 1;
-            }
-        }
-
-        if XMAS[self.samx_index] == c {
-            if self.samx_index == 0 {
-                self.samx_index = XMAS.len() - 1;
-                ret = true;
-            } else {
-                self.samx_index -= 1;
-            }
-        } else {
-            self.samx_index = XMAS.len() - 1;
-            if XMAS[self.samx_index] == c {
-                self.samx_index -= 1;
-            }
-        }
-
-        ret
-    }
-}
-
-#[test]
-fn check_xmas() {
-    let mut xmas = Xmas::new();
-
-    assert_eq!(
-        [b'X', b'M', b'A', b'S']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        1
-    );
-    xmas.reset();
-
-    assert_eq!(
-        [b'X', b'X', b'M', b'A', b'S']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        1
-    );
-    xmas.reset();
-
-    assert_eq!(
-        [b'S', b'A', b'M', b'X']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        1
-    );
-    xmas.reset();
-
-    assert_eq!(
-        [b'X', b'A', b'M', b'X']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        0
-    );
-    xmas.reset();
-
-    assert_eq!(
-        [b'X', b'M', b'A', b'S', b'X', b'M', b'A', b'S']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        2
-    );
-    xmas.reset();
-
-    assert_eq!(
-        [b'X', b'M', b'A', b'S', b'S', b'A', b'M', b'X']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        2
-    );
-
-    xmas.reset();
-
-    assert_eq!(
-        [b'X', b'M', b'A', b'S', b'A', b'M', b'X']
-            .iter()
-            .filter(|&c| xmas.consume(*c))
-            .count(),
-        2
-    );
-}
-
-fn resolve<T>(lines: Lines<T>) -> (usize, u32)
+fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut grid: Vec<Vec<u8>> = vec![];
+    let mut grid = [[ 0u8; SIZE]; SIZE];
 
-    for line in lines {
+    for (y, line) in lines.enumerate() {
         let line = line.unwrap();
 
-        grid.push(line.as_bytes().to_vec());
+        grid[y].clone_from_slice(line.as_bytes());
     }
 
-    let h = grid.len();
-    let w = grid[0].len();
     let mut part1 = 0;
 
-    // horizontal
-    for y in 0..h {
-        let mut xmas = Xmas::new();
+    // horyzontal
+    for line in grid {
+        for x in 0..(SIZE-3) {
+            let slice = &line[x..x+4];
 
-        part1 += (0..w).filter(|&idx| xmas.consume(grid[y][idx])).count();
+            if slice == b"XMAS" || slice == b"SAMX" {
+                part1 += 1;
+            }
+        }
     }
 
     // vertical
-    for x in 0..w {
-        let mut xmas = Xmas::new();
+    for x in 0..SIZE {
+        for y in 0..(SIZE-3) {
+            let s = [ grid[y][x], grid[y+1][x], grid[y+2][x], grid[y+3][x] ];
 
-        part1 += (0..h).filter(|&idx| xmas.consume(grid[idx][x])).count();
+            if s == *b"XMAS" || s == *b"SAMX" {
+                part1 += 1;
+            }
+        }
     }
 
-    // diagonal
-    for x in 0..w {
-        let mut xmas = Xmas::new();
+    // diagonals
+    for y in 0..(SIZE-3) {
+        for x in 0..(SIZE-3) {
+            // diagonal \
+            let s = [ grid[y][x], grid[y+1][x+1], grid[y+2][x+2], grid[y+3][x+3] ];
 
-        part1 += (0..(w - x))
-            .filter(|&idx| xmas.consume(grid[idx][idx + x]))
-            .count();
-    }
+            if s == *b"XMAS" || s == *b"SAMX" {
+                part1 += 1;
+            }
 
-    for y in 1..h {
-        let mut xmas = Xmas::new();
+            // diagonal /
+            let s = [ grid[y][x+3], grid[y+1][x+2], grid[y+2][x+1], grid[y+3][x] ];
 
-        part1 += (0..(h - y))
-            .filter(|&idx| xmas.consume(grid[idx + y][idx]))
-            .count();
-    }
-
-    for x in 0..w {
-        let mut xmas = Xmas::new();
-
-        part1 += (0..x + 1)
-            .filter(|&idx| xmas.consume(grid[idx][x - idx]))
-            .count();
-    }
-
-    for y in 1..h {
-        let mut xmas = Xmas::new();
-
-        part1 += (0..h - y)
-            .filter(|&idx| xmas.consume(grid[y + idx][w - 1 - idx]))
-            .count();
+            if s == *b"XMAS" || s == *b"SAMX" {
+                part1 += 1;
+            }
+        }
     }
 
     let mut part2 = 0;
 
-    for x in 1..w - 1 {
-        for y in 1..h - 1 {
+    for x in 1..SIZE - 1 {
+        for y in 1..SIZE - 1 {
             if grid[y][x] == b'A'
                 && grid[y - 1][x - 1] + grid[y + 1][x + 1] == b'S' + b'M'
                 && grid[y - 1][x + 1] + grid[y + 1][x - 1] == b'S' + b'M'
