@@ -6,7 +6,7 @@ fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut grid = [[ 0u8; SIZE]; SIZE];
+    let mut grid = [[0u8; SIZE]; SIZE];
 
     for (y, line) in lines.enumerate() {
         let line = line.unwrap();
@@ -16,43 +16,51 @@ where
 
     let mut part1 = 0;
 
-    // horyzontal
-    for line in grid {
-        for x in 0..(SIZE-3) {
-            let slice = &line[x..x+4];
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            // horizontal
+            if x + 3 < SIZE {
+                let horizontal = &grid[y][x..x + 4];
 
-            if slice == b"XMAS" || slice == b"SAMX" {
-                part1 += 1;
-            }
-        }
-    }
-
-    // vertical
-    for x in 0..SIZE {
-        for y in 0..(SIZE-3) {
-            let s = [ grid[y][x], grid[y+1][x], grid[y+2][x], grid[y+3][x] ];
-
-            if s == *b"XMAS" || s == *b"SAMX" {
-                part1 += 1;
-            }
-        }
-    }
-
-    // diagonals
-    for y in 0..(SIZE-3) {
-        for x in 0..(SIZE-3) {
-            // diagonal \
-            let s = [ grid[y][x], grid[y+1][x+1], grid[y+2][x+2], grid[y+3][x+3] ];
-
-            if s == *b"XMAS" || s == *b"SAMX" {
-                part1 += 1;
+                if horizontal == b"XMAS" || horizontal == b"SAMX" {
+                    part1 += 1;
+                }
             }
 
-            // diagonal /
-            let s = [ grid[y][x+3], grid[y+1][x+2], grid[y+2][x+1], grid[y+3][x] ];
+            // vertical
+            if y + 3 < SIZE {
+                let vertical = [grid[y][x], grid[y + 1][x], grid[y + 2][x], grid[y + 3][x]];
 
-            if s == *b"XMAS" || s == *b"SAMX" {
-                part1 += 1;
+                if vertical == *b"XMAS" || vertical == *b"SAMX" {
+                    part1 += 1;
+                }
+            }
+
+            // diagonals
+            if x + 3 < SIZE && y + 3 < SIZE {
+                // diagonal \
+                let antislash = [
+                    grid[y][x],
+                    grid[y + 1][x + 1],
+                    grid[y + 2][x + 2],
+                    grid[y + 3][x + 3],
+                ];
+
+                if antislash == *b"XMAS" || antislash == *b"SAMX" {
+                    part1 += 1;
+                }
+
+                // diagonal /
+                let slash = [
+                    grid[y][x + 3],
+                    grid[y + 1][x + 2],
+                    grid[y + 2][x + 1],
+                    grid[y + 3][x],
+                ];
+
+                if slash == *b"XMAS" || slash == *b"SAMX" {
+                    part1 += 1;
+                }
             }
         }
     }
