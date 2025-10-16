@@ -4,6 +4,8 @@ use std::io::{BufRead, Lines};
 
 const SIZE: usize = if cfg!(test) { 17 } else { 141 };
 
+type Point = (u16, u16);
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 enum Direction {
     Up = 0,
@@ -30,12 +32,19 @@ impl Direction {
             Direction::Left => Direction::Down,
         }
     }
+
+    fn next(&self, p: Point) -> Point {
+        match self {
+            Direction::Up => (p.0, p.1 - 1),
+            Direction::Right => (p.0 + 1, p.1),
+            Direction::Down => (p.0, p.1 + 1),
+            Direction::Left => (p.0 - 1, p.1),
+        }
+    }
 }
 
-type Point = (i32, i32);
-
 #[derive(Debug, Eq, PartialEq)]
-struct Path(Point, Direction, usize, Vec<Point>);
+struct Path(Point, Direction, usize);
 
 impl Ord for Path {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -49,64 +58,80 @@ impl PartialOrd for Path {
     }
 }
 
-fn best_paths(grid: &[[u8; SIZE]; SIZE], start: Point, d: Direction, end: Point) -> (usize, usize) {
-    let mut scores: [[[usize; 4]; SIZE]; SIZE] = [[[usize::MAX; 4]; SIZE]; SIZE];
-    let mut heap = BinaryHeap::new();
+type Predecessors = Vec<(Point, Direction)>;
 
-    heap.push(Path(start, d, 0, vec![]));
+fn best_paths(
+    scores: &mut [[[usize; 4]; SIZE]; SIZE],
+    start: Point,
+    d: Direction,
+    end: Point,
+) -> (usize, usize) {
+    let mut pred: [[[Predecessors; 4]; SIZE]; SIZE] =
+        core::array::from_fn(|_| core::array::from_fn(|_| core::array::from_fn(|_| Vec::new())));
+    let mut heap = BinaryHeap::new();
+    let mut v = vec![];
+
+    heap.push(Path(start, d, 0));
+    scores[start.1 as usize][start.0 as usize][d as usize] = 0;
 
     let mut p1 = usize::MAX;
-    let mut p2 = HashSet::new();
 
-    while let Some(Path(p, d, score, points)) = heap.pop() {
-        let x = p.0 as usize;
-        let y = p.1 as usize;
+    while let Some(Path(p, d, score)) = heap.pop() {
+        let next = d.next(p);
 
-        scores[y][x][d as usize] = score;
-
-        let left = d.turn_left();
-
-        if scores[y][x][left as usize] > score + 1000 && score + 1000 < p1 {
-            heap.push(Path(p, left, score + 1000, points.clone()));
+        if next == end {
+            p1 = score + 1;
+            v.push((p, d));
+            continue;
         }
 
-        let right = d.turn_right();
+        let nexts = [
+            (p, d.turn_left(), score + 1000),
+            (p, d.turn_right(), score + 1000),
+            (next, d, score + 1),
+        ];
 
-        if scores[y][x][right as usize] > score + 1000 && score + 1000 < p1 {
-            heap.push(Path(p, right, score + 1000, points.clone()));
-        }
-
-        let next = match d {
-            Direction::Up => (p.0, p.1 - 1),
-            Direction::Right => (p.0 + 1, p.1),
-            Direction::Down => (p.0, p.1 + 1),
-            Direction::Left => (p.0 - 1, p.1),
-        };
-
-        let next_x = next.0 as usize;
-        let next_y = next.1 as usize;
-
-        if grid[next_y][next_x] == b'.' {
-            if next == end {
-                p1 = score;
-                p2.extend(points);
-            } else if scores[next_y][next_x][d as usize] > score && score + 1 < p1 {
-                let mut points = points;
-                points.push(p);
-
-                heap.push(Path(next, d, score + 1, points));
+        for (nextp, nextd, nextscore) in nexts {
+            if nextscore > p1 {
+                continue;
             }
+
+            let scores_ref = &mut scores[nextp.1 as usize][nextp.0 as usize][nextd as usize];
+
+            if nextscore > *scores_ref {
+                continue;
+            }
+
+            let pred_ref = &mut pred[nextp.1 as usize][nextp.0 as usize][nextd as usize];
+
+            if nextscore < *scores_ref {
+                pred_ref.clear();
+            }
+
+            pred_ref.push((p, d));
+            *scores_ref = nextscore;
+            heap.push(Path(nextp, nextd, nextscore));
         }
     }
 
-    (p1 + 1, p2.len() + 2)
+    let mut p2 = HashSet::from([end]);
+
+    while let Some((p, d)) = v.pop() {
+        p2.insert(p);
+
+        for prevs in pred[p.1 as usize][p.0 as usize][d as usize].drain(..) {
+            v.push(prevs);
+        }
+    }
+
+    (p1, p2.len())
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut grid: [[u8; SIZE]; SIZE] = [[b'.'; SIZE]; SIZE];
+    let mut scores: [[[usize; 4]; SIZE]; SIZE] = [[[usize::MAX; 4]; SIZE]; SIZE];
     let mut position = (0, 0);
     let mut end = (0, 0);
 
@@ -115,16 +140,16 @@ where
 
         for (x, c) in line.as_bytes().iter().enumerate() {
             match c {
-                b'#' => grid[y][x] = b'#',
-                b'S' => position = (x as i32, y as i32),
-                b'E' => end = (x as i32, y as i32),
+                b'#' => scores[y][x] = [0, 0, 0, 0],
+                b'S' => position = (x as u16, y as u16),
+                b'E' => end = (x as u16, y as u16),
                 b'.' => (),
                 _ => panic!(),
             }
         }
     }
 
-    best_paths(&grid, position, Direction::Right, end)
+    best_paths(&mut scores, position, Direction::Right, end)
 }
 
 #[test]
