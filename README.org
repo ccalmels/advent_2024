@@ -10,7 +10,7 @@ $ cargo r --release --target aarch64-unknown-linux-gnu -F vendored-openssl
 ** Performance
 
 *** AMD Ryzen 9 7900
-It takes ~180ms to complete all puzzles.
+It takes ~160ms to complete all puzzles.
 
 *** Raspberry PI 3 (aarch64)
-It takes ~3.4s to complete all puzzles.
+It takes ~2.5s to complete all puzzles.
