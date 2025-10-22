@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 
@@ -32,8 +33,7 @@ where
     T: BufRead,
 {
     let mut patterns: Vec<Vec<u8>> = vec![];
-    let mut p1 = 0;
-    let mut p2 = 0;
+    let mut designs = vec![];
 
     for line in lines {
         let line = line.unwrap();
@@ -54,14 +54,18 @@ where
                 })
                 .collect();
         } else {
-            let n = check_design_count(&patterns, line.as_bytes(), &mut HashMap::new());
-
-            p1 += if n > 0 { 1 } else { 0 };
-            p2 += n;
+            designs.push(line.as_bytes().to_vec());
         }
     }
 
-    (p1, p2)
+    designs
+        .into_par_iter()
+        .map(|design| {
+            let n = check_design_count(&patterns, &design, &mut HashMap::new());
+
+            (if n > 0 { 1 } else { 0 }, n)
+        })
+        .reduce(|| (0, 0), |(p1, p2), (v1, v2)| (p1 + v1, p2 + v2))
 }
 
 #[test]
