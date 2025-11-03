@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
 // https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
+#[allow(dead_code)]
 fn bron_kernbosch(
     connections: &HashMap<u16, HashSet<u16>>,
     r: HashSet<u16>,
@@ -29,6 +30,39 @@ fn bron_kernbosch(
         p.remove(&v);
         x.insert(v);
     }
+}
+
+fn cliques_tsukiyama(connections: HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>>
+{
+    let mut vertices: Vec<u16> = connections.keys().cloned().collect();
+
+    vertices.sort_unstable();
+
+    let mut cliques = vec![HashSet::from([vertices[0]])];
+
+    for v in vertices.into_iter().skip(1) {
+        let neighbors = connections.get(&v).cloned().unwrap();
+        let mut tmp = vec![];
+
+        for c in &mut cliques {
+            if c.is_subset(&neighbors) {
+                c.insert(v);
+            } else {
+                let intersect: HashSet<u16> = c.intersection(&neighbors).cloned().collect();
+
+                if !tmp.contains(&intersect) {
+                    tmp.push(intersect);
+                }
+            }
+        }
+
+        for mut c in tmp {
+            c.insert(v);
+            cliques.push(c);
+        }
+    }
+
+    cliques
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, String)
@@ -72,12 +106,26 @@ where
         }
     }
 
-    let p: HashSet<u16> = connections.keys().cloned().collect();
-    let r = HashSet::new();
-    let x = HashSet::new();
+    let ret = cliques_tsukiyama(connections.clone());
+
     let mut max_clique = HashSet::new();
 
-    bron_kernbosch(&connections, r, p, x, &mut max_clique);
+    for clique in ret {
+        let len = clique.len();
+
+        if max_clique.len() < len {
+            max_clique = clique;
+        }
+    }
+
+    // let p: HashSet<u16> = connections.keys().cloned().collect();
+    // let r = HashSet::new();
+    // let x = HashSet::new();
+    // let mut max_clique = HashSet::new();
+
+    // bron_kernbosch(&connections, r, p, x, &mut max_clique);
+
+    // let mut points: Vec<u16> = Vec::from_iter(max_clique);
 
     let mut points: Vec<u16> = Vec::from_iter(max_clique);
 
