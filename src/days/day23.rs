@@ -32,8 +32,7 @@ fn bron_kernbosch(
     }
 }
 
-fn cliques_tsukiyama(connections: HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>>
-{
+fn cliques_tsukiyama(connections: HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>> {
     let mut vertices: Vec<u16> = connections.keys().cloned().collect();
 
     vertices.sort_unstable();
