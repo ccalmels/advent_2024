@@ -58,16 +58,13 @@ impl PartialOrd for Path {
     }
 }
 
-type Predecessors = Vec<(Point, Direction)>;
-
 fn best_paths(
     scores: &mut [[[usize; 4]; SIZE]; SIZE],
     start: Point,
     d: Direction,
     end: Point,
 ) -> (usize, usize) {
-    let mut pred: [[[Predecessors; 4]; SIZE]; SIZE] =
-        core::array::from_fn(|_| core::array::from_fn(|_| core::array::from_fn(|_| Vec::new())));
+    let mut pred = vec![vec![vec![vec![]; 4]; SIZE]; SIZE];
     let mut heap = BinaryHeap::new();
     let mut v = vec![];
 
