@@ -38,7 +38,7 @@ impl Machine {
             },
             if numerator2.signum() == denominator.signum() && numerator2 % denominator == 0 {
                 let a = numerator2 / denominator;
-                let b = (10000000000000 + prizex - a * self.ax) / self.bx;
+                let b = (10_000_000_000_000 + prizex - a * self.ax) / self.bx;
                 3 * a + b
             } else {
                 0

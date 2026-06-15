@@ -41,7 +41,7 @@ fn check_page() {
     let mut p47 = Page::new(47);
     let p53 = Page::new(53);
 
-    assert!(!(p47 < p53));
+    assert!(p47 >= p53);
 
     p47.add_print_before(p53.number);
 

@@ -20,10 +20,10 @@ fn is_safe(report: &[i32]) -> bool {
 
 #[test]
 fn check_is_safe() {
-    assert!(is_safe(&vec![7, 6, 4, 2, 1]));
-    assert!(!is_safe(&vec![1, 2, 7, 8, 9]));
-    assert!(!is_safe(&vec![9, 7, 6, 2, 1]));
-    assert!(!is_safe(&vec![8, 6, 4, 4, 1]));
+    assert!(is_safe(&[7, 6, 4, 2, 1]));
+    assert!(!is_safe(&[1, 2, 7, 8, 9]));
+    assert!(!is_safe(&[9, 7, 6, 2, 1]));
+    assert!(!is_safe(&[8, 6, 4, 4, 1]));
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)

@@ -168,7 +168,7 @@ fn resolve_one(session: Option<&str>, day_number: u32) {
     inventory::iter::<Day>
         .into_iter()
         .find(|d| d.parse_number() == day_number)
-        .unwrap()
+        .expect("unable to find this day")
         .print(session);
 }
 

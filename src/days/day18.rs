@@ -82,7 +82,7 @@ where
 {
     let mut memory = [[b'.'; SIZE]; SIZE];
     let mut p1 = 0;
-    let mut p2 = String::from("");
+    let mut p2 = String::new();
     let mut previous = vec![];
 
     for (index, line) in lines.enumerate() {
@@ -154,7 +154,7 @@ where
     T: BufRead,
 {
     let solution = resolve(lines);
-    (solution.0.to_string(), solution.1.to_string())
+    (solution.0.to_string(), solution.1)
 }
 
 inventory::submit! { advent_2024::Day::new(file!(), resolve_string) }

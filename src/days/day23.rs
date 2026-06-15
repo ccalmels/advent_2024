@@ -32,8 +32,8 @@ fn bron_kernbosch(
     }
 }
 
-fn cliques_tsukiyama(connections: HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>> {
-    let mut vertices: Vec<u16> = connections.keys().cloned().collect();
+fn cliques_tsukiyama(connections: &HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>> {
+    let mut vertices: Vec<u16> = connections.keys().copied().collect();
 
     vertices.sort_unstable();
 
@@ -47,7 +47,7 @@ fn cliques_tsukiyama(connections: HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16
             if c.is_subset(&neighbors) {
                 c.insert(v);
             } else {
-                let intersect: HashSet<u16> = c.intersection(&neighbors).cloned().collect();
+                let intersect: HashSet<u16> = c.intersection(&neighbors).copied().collect();
 
                 if !tmp.contains(&intersect) {
                     tmp.push(intersect);
@@ -105,7 +105,7 @@ where
         }
     }
 
-    let ret = cliques_tsukiyama(connections.clone());
+    let ret = cliques_tsukiyama(&connections);
 
     let mut max_clique = HashSet::new();
 
@@ -130,7 +130,7 @@ where
 
     points.sort_unstable();
 
-    let mut p2 = String::from("");
+    let mut p2 = String::new();
 
     for p in points {
         p2 = format!(
@@ -192,7 +192,7 @@ where
     T: BufRead,
 {
     let solution = resolve(lines);
-    (solution.0.to_string(), solution.1.to_string())
+    (solution.0.to_string(), solution.1)
 }
 
 inventory::submit! { advent_2024::Day::new(file!(), resolve_string) }

@@ -84,7 +84,7 @@ where
     }
 
     if cfg!(test) {
-        return (p1, String::from(""));
+        return (p1, String::new());
     }
 
     // https://www.101computing.net/binary-additions-using-logic-gates/
@@ -164,7 +164,7 @@ where
         cin = *inverted_tree.get(&Operation::Or(a, b)).unwrap();
     }
 
-    let mut p2 = String::from("");
+    let mut p2 = String::new();
     inverted.sort_unstable();
 
     for v in inverted {
@@ -251,7 +251,7 @@ where
     T: BufRead,
 {
     let solution = resolve(lines);
-    (solution.0.to_string(), solution.1.to_string())
+    (solution.0.to_string(), solution.1)
 }
 
 inventory::submit! { advent_2024::Day::new(file!(), resolve_string) }

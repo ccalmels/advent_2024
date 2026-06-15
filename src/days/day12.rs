@@ -6,14 +6,14 @@ const SIZE: usize = if cfg!(test) { 10 } else { 140 };
 const S: i32 = SIZE as i32;
 
 fn price(plots: &[((i32, i32), usize)]) -> (usize, usize) {
-    let mut p1 = plots.len() * 4;
-    let mut corners: HashMap<(i32, i32), u8> = HashMap::new();
     const DELTAS: [(i32, i32, u8); 4] = [
         (0, 0, 0b0001),
         (1, 0, 0b0010),
         (0, 1, 0b0100),
         (1, 1, 0b1000),
     ];
+    let mut p1 = plots.len() * 4;
+    let mut corners: HashMap<(i32, i32), u8> = HashMap::new();
 
     for &(point, neighbors) in plots.iter() {
         p1 -= neighbors;

@@ -21,7 +21,7 @@ where
             for i in 0..5 {
                 if p[i] == b'#' {
                     v[i] += 1;
-                };
+                }
             }
         }
 
@@ -35,7 +35,7 @@ where
     let mut p1 = 0;
 
     for l in locks {
-        for k in keys.iter() {
+        for k in &keys {
             let overlap = l.iter().zip(k.iter()).any(|(a, b)| a + b > H);
 
             p1 += if overlap { 0 } else { 1 };

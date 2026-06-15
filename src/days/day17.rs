@@ -262,7 +262,7 @@ where
     T: BufRead,
 {
     let solution = resolve(lines);
-    (solution.0.to_string(), solution.1.to_string())
+    (solution.0, solution.1.to_string())
 }
 
 inventory::submit! { advent_2024::Day::new(file!(), resolve_string) }

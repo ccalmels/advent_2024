@@ -109,10 +109,9 @@ fn check_loop(
 
                 if *entry & m == m {
                     return true;
-                } else {
-                    *entry |= m;
                 }
 
+                *entry |= m;
                 guard = next_position;
             }
         } else {
