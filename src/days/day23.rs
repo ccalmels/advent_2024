@@ -1,67 +1,48 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
+// Different algos
+//
+// Bron-KernBosch
 // https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
-#[allow(dead_code)]
-fn bron_kernbosch(
-    connections: &HashMap<u16, HashSet<u16>>,
-    r: HashSet<u16>,
+//
+// Algorithm 1 from:
+// https://www.internetmathematicsjournal.com/article/1586-fast-algorithms-for-the-maximum-clique-problem-on-massive-graphs-with-applications-to-overlapping-community-detection.pdf
+//
+// Branch-and-Bound
+// https://arxiv.org/html/2403.09742v1
+//
+// other resources:
+// https://arxiv.org/pdf/1101.1266
+fn best_clique(connections: &HashMap<u16, HashSet<u16>>,
+    clique: HashSet<u16>,
     mut p: HashSet<u16>,
-    mut x: HashSet<u16>,
-    max_clique: &mut HashSet<u16>,
+    best: &mut HashSet<u16>
 ) {
-    if p.is_empty() && x.is_empty() {
-        if max_clique.len() < r.len() {
-            *max_clique = r;
-        }
+    if clique.len() + p.len() <= best.len() {
+        return;
+    }
+
+    if p.is_empty() {
+        *best = clique;
         return;
     }
 
     for v in p.clone() {
-        let mut r2 = r.clone();
-        r2.insert(v);
+        let mut new_clique = clique.clone();
+        new_clique.insert(v);
 
-        let neighbors = connections.get(&v).unwrap();
-        let p2 = p.intersection(neighbors).cloned().collect();
-        let x2 = x.intersection(neighbors).cloned().collect();
+        let neighbors = &connections[&v];
+        let p2: HashSet<u16> = p.intersection(neighbors).copied().collect();
 
-        bron_kernbosch(connections, r2, p2, x2, max_clique);
+        best_clique(connections, new_clique, p2, best);
 
         p.remove(&v);
-        x.insert(v);
-    }
-}
 
-fn cliques_tsukiyama(connections: &HashMap<u16, HashSet<u16>>) -> Vec<HashSet<u16>> {
-    let mut vertices: Vec<u16> = connections.keys().copied().collect();
-
-    vertices.sort_unstable();
-
-    let mut cliques = vec![HashSet::from([vertices[0]])];
-
-    for v in vertices.into_iter().skip(1) {
-        let neighbors = connections.get(&v).cloned().unwrap();
-        let mut tmp = vec![];
-
-        for c in &mut cliques {
-            if c.is_subset(&neighbors) {
-                c.insert(v);
-            } else {
-                let intersect: HashSet<u16> = c.intersection(&neighbors).copied().collect();
-
-                if !tmp.contains(&intersect) {
-                    tmp.push(intersect);
-                }
-            }
-        }
-
-        for mut c in tmp {
-            c.insert(v);
-            cliques.push(c);
+        if clique.len() + p.len() <= best.len() {
+            return;
         }
     }
-
-    cliques
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, String)
@@ -105,26 +86,10 @@ where
         }
     }
 
-    let ret = cliques_tsukiyama(&connections);
-
+    let p: HashSet<u16> = connections.keys().copied().collect();
     let mut max_clique = HashSet::new();
 
-    for clique in ret {
-        let len = clique.len();
-
-        if max_clique.len() < len {
-            max_clique = clique;
-        }
-    }
-
-    // let p: HashSet<u16> = connections.keys().cloned().collect();
-    // let r = HashSet::new();
-    // let x = HashSet::new();
-    // let mut max_clique = HashSet::new();
-
-    // bron_kernbosch(&connections, r, p, x, &mut max_clique);
-
-    // let mut points: Vec<u16> = Vec::from_iter(max_clique);
+    best_clique(&connections, HashSet::new(), p, &mut max_clique);
 
     let mut points: Vec<u16> = Vec::from_iter(max_clique);
 
