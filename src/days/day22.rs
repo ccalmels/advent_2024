@@ -1,6 +1,8 @@
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
+
+const BUYERS_COUNT: usize = 1632;
 
 type Secret = u32;
 
@@ -42,37 +44,50 @@ fn check_next_secret() {
 
 type Buyer = (u64, HashMap<u32, i32>);
 
-fn compute_buyer(mut secret: Secret) -> Buyer {
-    let mut seq: u32 = 0;
-    let mut prev = (secret as i32) % 10;
+fn compute_buyers(secrets: &[Secret]) -> Buyer {
     let mut prices = HashMap::new();
+    let mut p1 = 0u64;
+    let mut already_seen = HashSet::new();
 
-    for i in 0..2000 {
-        secret = next_secret(secret);
+    for &(mut secret) in secrets {
+        let mut seq: u32 = 0;
+        let mut prev = (secret as i32) % 10;
 
-        let price = (secret as i32) % 10;
+        already_seen.clear();
 
-        seq = (seq << 8) | ((price - prev) as u8) as u32;
+        for i in 0..2000 {
+            secret = next_secret(secret);
 
-        prev = price;
+            let price = (secret as i32) % 10;
 
-        if i > 2 {
-            prices.entry(seq).or_insert(price);
+            seq = (seq << 8) | ((price - prev) as u8) as u32;
+
+            prev = price;
+
+            if i > 2 && !already_seen.contains(&seq) {
+                *prices.entry(seq).or_default() += price;
+
+                already_seen.insert(seq);
+            }
         }
+
+        p1 += secret as u64;
     }
 
-    (secret as u64, prices)
+    (p1, prices)
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u64, i32)
 where
     T: BufRead,
 {
+    let chunk_size = BUYERS_COUNT.div_ceil(rayon::current_num_threads());
+
     let (p1, prices) = lines
         .map(|line| line.unwrap().parse::<u32>().unwrap())
         .collect::<Vec<_>>()
-        .into_par_iter()
-        .map(compute_buyer)
+        .par_chunks(chunk_size)
+        .map(compute_buyers)
         .reduce(
             || (0, HashMap::new()),
             |a: Buyer, b: Buyer| {
@@ -92,7 +107,13 @@ where
             },
         );
 
-    let p2 = prices.values().copied().collect::<Vec<_>>().into_par_iter().max().unwrap();
+    let p2 = prices
+        .values()
+        .copied()
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .max()
+        .unwrap();
 
     (p1, p2)
 }
