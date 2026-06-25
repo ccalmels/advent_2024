@@ -1,5 +1,4 @@
 use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
 const BUYERS_COUNT: usize = 1632;
@@ -42,33 +41,64 @@ fn check_next_secret() {
     );
 }
 
-type Buyer = (u64, HashMap<u32, i32>);
+// from -9 to 9 => 0 to 18
+const BASE: usize = 19;
+const PRICES_SIZE: usize = BASE * BASE * BASE * BASE;
 
-fn compute_buyers(secrets: &[Secret]) -> Buyer {
-    let mut prices = HashMap::new();
+fn next_sequence(sequence: usize, delta: usize) -> usize {
+    (sequence * BASE + delta) % PRICES_SIZE
+}
+
+#[test]
+fn check_array() {
+    let mut sequence = 0usize;
+
+    sequence = next_sequence(sequence, 13);
+
+    assert_eq!(sequence, 13);
+
+    sequence = next_sequence(sequence, 4);
+
+    assert_eq!(sequence, 13 * BASE + 4);
+
+    sequence = next_sequence(sequence, 0);
+
+    assert_eq!(sequence, 13 * BASE * BASE + 4 * BASE);
+
+    sequence = next_sequence(sequence, 17);
+
+    assert_eq!(sequence, 13 * BASE * BASE * BASE + 4 * BASE * BASE + 17);
+
+    sequence = next_sequence(sequence, 8);
+
+    assert_eq!(sequence, 4 * BASE * BASE * BASE + 17 * BASE + 8);
+}
+
+type Prices = (u64, Vec<i32>);
+
+fn compute_buyers(secrets: &[Secret]) -> Prices {
+    let mut prices = vec![0; PRICES_SIZE];
+    let mut it_was_buyer = vec![u32::MAX; PRICES_SIZE];
     let mut p1 = 0u64;
-    let mut already_seen = HashSet::new();
 
-    for &(mut secret) in secrets {
-        let mut seq: u32 = 0;
+    for (index, &(mut secret)) in secrets.iter().enumerate() {
+        let mut seq: usize = 0;
         let mut prev = (secret as i32) % 10;
-
-        already_seen.clear();
+        let index = index as u32;
 
         for i in 0..2000 {
             secret = next_secret(secret);
 
             let price = (secret as i32) % 10;
 
-            seq = (seq << 8) | ((price - prev) as u8) as u32;
+            seq = next_sequence(seq, (price + 9 - prev) as usize);
+
+            if i > 2 && it_was_buyer[seq] != index {
+                prices[seq] += price;
+                it_was_buyer[seq] = index;
+            }
 
             prev = price;
-
-            if i > 2 && !already_seen.contains(&seq) {
-                *prices.entry(seq).or_default() += price;
-
-                already_seen.insert(seq);
-            }
         }
 
         p1 += secret as u64;
@@ -89,31 +119,19 @@ where
         .par_chunks(chunk_size)
         .map(compute_buyers)
         .reduce(
-            || (0, HashMap::new()),
-            |a: Buyer, b: Buyer| {
-                let (mut a, b) = if a.1.len() < b.1.len() {
-                    (b, a)
-                } else {
-                    (a, b)
-                };
+            || (0, vec![0; PRICES_SIZE]),
+            |mut a: Prices, b: Prices| {
                 a.0 += b.0;
 
-                for (k, v) in b.1 {
-                    let e = a.1.entry(k).or_default();
-
-                    *e += v;
+                for (va, vb) in a.1.iter_mut().zip(b.1) {
+                    *va += vb;
                 }
+
                 a
             },
         );
 
-    let p2 = prices
-        .values()
-        .copied()
-        .collect::<Vec<_>>()
-        .into_par_iter()
-        .max()
-        .unwrap();
+    let p2 = prices.into_iter().max().unwrap();
 
     (p1, p2)
 }

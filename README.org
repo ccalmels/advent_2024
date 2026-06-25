@@ -16,7 +16,7 @@ Build and run (with qemu-user-binfmt) on aarch64:
 ** Performance
 
 *** AMD Ryzen 9 7900
-It takes ~80ms to complete all puzzles.
+It takes ~60ms to complete all puzzles.
 
 *** Raspberry PI 4 (aarch64)
-It takes ~800ms to complete all puzzles.
+It takes ~500ms to complete all puzzles.
