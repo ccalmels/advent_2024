@@ -40,13 +40,12 @@ fn check_next_secret() {
     );
 }
 
-type Buyer = ((u64, i32), HashMap<u32, i32>);
+type Buyer = (u64, HashMap<u32, i32>);
 
 fn compute_buyer(mut secret: Secret) -> Buyer {
     let mut seq: u32 = 0;
     let mut prev = (secret as i32) % 10;
     let mut prices = HashMap::new();
-    let mut max = 0;
 
     for i in 0..2000 {
         secret = next_secret(secret);
@@ -59,44 +58,43 @@ fn compute_buyer(mut secret: Secret) -> Buyer {
 
         if i > 2 {
             prices.entry(seq).or_insert(price);
-
-            max = max.max(price);
         }
     }
 
-    ((secret as u64, max), prices)
+    (secret as u64, prices)
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u64, i32)
 where
     T: BufRead,
 {
-    lines
+    let (p1, prices) = lines
         .map(|line| line.unwrap().parse::<u32>().unwrap())
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(compute_buyer)
         .reduce(
-            || ((0, 0), HashMap::new()),
+            || (0, HashMap::new()),
             |a: Buyer, b: Buyer| {
                 let (mut a, b) = if a.1.len() < b.1.len() {
                     (b, a)
                 } else {
                     (a, b)
                 };
-                a.0 .0 += b.0 .0;
+                a.0 += b.0;
 
                 for (k, v) in b.1 {
                     let e = a.1.entry(k).or_default();
 
                     *e += v;
-
-                    a.0 .1 = a.0 .1.max(*e);
                 }
                 a
             },
-        )
-        .0
+        );
+
+    let p2 = prices.values().copied().collect::<Vec<_>>().into_par_iter().max().unwrap();
+
+    (p1, p2)
 }
 
 #[test]
