@@ -74,28 +74,18 @@ fn check_split_stone2() {
     assert_eq!(split_stone2(1000), Some(100));
 }
 
-fn number_of_stones(
-    cache: &mut HashMap<(usize, usize), usize>,
-    level: usize,
-    stone: usize,
-) -> usize {
-    if level == 0 {
-        1
-    } else if let Some(&v) = cache.get(&(level, stone)) {
-        v
-    } else {
-        let ret = if stone == 0 {
-            number_of_stones(cache, level - 1, 1)
+fn blink(current: &HashMap<usize, usize>, next: &mut HashMap<usize, usize>) {
+    next.clear();
+
+    for (&stone, &count) in current {
+        if stone == 0 {
+            *next.entry(1).or_default() += count;
         } else if let Some(mul) = split_stone(stone) {
-            number_of_stones(cache, level - 1, stone / mul)
-                + number_of_stones(cache, level - 1, stone % mul)
+            *next.entry(stone / mul).or_default() += count;
+            *next.entry(stone % mul).or_default() += count;
         } else {
-            number_of_stones(cache, level - 1, stone * 2024)
-        };
-
-        cache.insert((level, stone), ret);
-
-        ret
+            *next.entry(stone * 2024).or_default() += count;
+        }
     }
 }
 
@@ -103,19 +93,29 @@ fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
+    let mut next = HashMap::new();
+    let mut current = HashMap::new();
     let line = lines.last().unwrap().unwrap();
-    let stones: Vec<usize> = line
-        .split_whitespace()
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    let mut cache = HashMap::new();
 
-    stones.iter().fold((0, 0), |(p1, p2), &s| {
-        (
-            p1 + number_of_stones(&mut cache, 25, s),
-            p2 + number_of_stones(&mut cache, 75, s),
-        )
-    })
+    for s in line.split_whitespace() {
+        *current.entry(s.parse().unwrap()).or_default() += 1;
+    }
+
+    for _ in 0..25 {
+        blink(&current, &mut next);
+
+        std::mem::swap(&mut current, &mut next);
+    }
+
+    let p1 = current.values().sum();
+
+    for _ in 25..75 {
+        blink(&current, &mut next);
+
+        std::mem::swap(&mut current, &mut next);
+    }
+
+    (p1, current.values().sum())
 }
 
 #[test]
