@@ -14,10 +14,11 @@ use std::io::{BufRead, Lines};
 //
 // other resources:
 // https://arxiv.org/pdf/1101.1266
-fn best_clique(connections: &HashMap<u16, HashSet<u16>>,
+fn best_clique(
+    connections: &HashMap<u16, HashSet<u16>>,
     clique: HashSet<u16>,
     mut p: HashSet<u16>,
-    best: &mut HashSet<u16>
+    best: &mut HashSet<u16>,
 ) {
     if clique.len() + p.len() <= best.len() {
         return;
@@ -95,17 +96,11 @@ where
 
     points.sort_unstable();
 
-    let mut p2 = String::new();
-
-    for p in points {
-        p2 = format!(
-            "{}{}{}{}",
-            p2,
-            if p2.is_empty() { "" } else { "," },
-            (p >> 8) as u8 as char,
-            (p & 0xff) as u8 as char
-        );
-    }
+    let p2 = points
+        .iter()
+        .map(|&p| format!("{}{}", (p >> 8) as u8 as char, (p & 0xff) as u8 as char))
+        .collect::<Vec<_>>()
+        .join(",");
 
     (p1, p2)
 }

@@ -164,19 +164,20 @@ where
         cin = *inverted_tree.get(&Operation::Or(a, b)).unwrap();
     }
 
-    let mut p2 = String::new();
     inverted.sort_unstable();
 
-    for v in inverted {
-        p2 = format!(
-            "{}{}{}{}{}",
-            p2,
-            if p2.is_empty() { "" } else { "," },
-            (v >> 16) as u8 as char,
-            ((v >> 8) & 0xff) as u8 as char,
-            (v & 0xff) as u8 as char,
-        );
-    }
+    let p2 = inverted
+        .iter()
+        .map(|v| {
+            format!(
+                "{}{}{}",
+                (v >> 16) as u8 as char,
+                ((v >> 8) & 0xff) as u8 as char,
+                (v & 0xff) as u8 as char
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
 
     (p1, p2)
 }
