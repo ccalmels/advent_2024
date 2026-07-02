@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, Lines};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 struct Page {
     number: u32,
     before: HashSet<u32>,
@@ -18,44 +18,6 @@ impl Page {
     fn add_print_before(&mut self, number: u32) {
         self.before.insert(number);
     }
-}
-
-impl PartialOrd for Page {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Page {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.before.contains(&other.number) {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        }
-    }
-}
-
-#[test]
-fn check_page() {
-    let mut p47 = Page::new(47);
-    let p53 = Page::new(53);
-
-    assert!(p47 >= p53);
-
-    p47.add_print_before(p53.number);
-
-    assert!(p47 < p53);
-
-    let mut p75 = Page::new(75);
-
-    p75.add_print_before(47);
-    p75.add_print_before(61);
-
-    let p61 = Page::new(61);
-
-    assert!(p75 < p47);
-    assert!(p75 < p61);
 }
 
 fn resolve<T>(lines: Lines<T>) -> (u32, u32)
@@ -89,12 +51,18 @@ where
             .map(|s| pages.get(&s.parse().unwrap()).unwrap())
             .collect();
 
-        if pages_list.is_sorted() {
+        if pages_list.is_sorted_by(|a, b| a.before.contains(&b.number)) {
             (p1 + pages_list[pages_list.len() / 2].number, p2)
         } else {
             let mut pages_list = pages_list;
 
-            pages_list.sort_unstable();
+            pages_list.sort_unstable_by(|a, b| {
+                if a.before.contains(&b.number) {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            });
 
             (p1, p2 + pages_list[pages_list.len() / 2].number)
         }
