@@ -1,113 +1,145 @@
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::VecDeque;
 use std::io::{BufRead, Lines};
 
 const SIZE: usize = if cfg!(test) { 7 } else { 71 };
-const S: i32 = SIZE as i32;
 const FALLEN: usize = if cfg!(test) { 12 } else { 1024 };
+const DIRS: [(i32, i32); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)];
 
-#[derive(Debug, Eq, PartialEq)]
-struct Path((i32, i32), usize);
-
-impl Ord for Path {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.1.cmp(&self.1)
-    }
+struct UnionFind {
+    parent: Vec<usize>,
+    rank: Vec<usize>,
 }
 
-impl PartialOrd for Path {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-fn dijkstra(memory: &[[u8; SIZE]; SIZE]) -> Vec<(usize, usize)> {
-    const DIRS: [(i32, i32); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)];
-    let mut heap = BinaryHeap::new();
-    let mut distances = [[(usize::MAX, (0, 0)); SIZE]; SIZE];
-    let mut ret = vec![];
-
-    distances[0][0] = (0, (0, 0));
-    heap.push(Path((0, 0), 0));
-
-    while let Some(Path((x, y), distance)) = heap.pop() {
-        if x == S - 1 && y == S - 1 {
-            // at the end - reconstruct the path
-            let (d, p) = distances[y as usize][x as usize];
-
-            let mut x = p.0 as usize;
-            let mut y = p.1 as usize;
-
-            for _ in 0..d {
-                let p = distances[y][x].1;
-
-                x = p.0 as usize;
-                y = p.1 as usize;
-
-                ret.push((x, y));
-            }
-            assert_eq!((x, y), (0, 0));
-            break;
+impl UnionFind {
+    fn new(n: usize) -> Self {
+        UnionFind {
+            parent: (0..n).collect(),
+            rank: vec![0; n],
         }
+    }
 
-        for (dx, dy) in DIRS {
-            let (nextx, nexty) = (x + dx, y + dy);
+    fn find(&mut self, x: usize) -> usize {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x]);
+        }
+        self.parent[x]
+    }
 
-            // out of the memory grid
-            if nextx < 0 || nexty < 0 || nextx >= S || nexty >= S {
-                continue;
-            }
-
-            let (nx, ny) = (nextx as usize, nexty as usize);
-
-            // is a byte
-            if memory[ny][nx] == b'#' {
-                continue;
-            }
-
-            if distance + 1 < distances[ny][nx].0 {
-                heap.push(Path((nextx, nexty), distance + 1));
-
-                distances[ny][nx] = (distance + 1, (x, y));
+    fn union(&mut self, a: usize, b: usize) {
+        let (ra, rb) = (self.find(a), self.find(b));
+        if ra == rb {
+            return;
+        }
+        match self.rank[ra].cmp(&self.rank[rb]) {
+            Ordering::Less => self.parent[ra] = rb,
+            Ordering::Greater => self.parent[rb] = ra,
+            Ordering::Equal => {
+                self.parent[rb] = ra;
+                self.rank[ra] += 1;
             }
         }
     }
 
-    ret
+    fn connected(&mut self, a: usize, b: usize) -> bool {
+        self.find(a) == self.find(b)
+    }
+}
+
+fn idx(x: usize, y: usize) -> usize {
+    y * SIZE + x
+}
+
+fn neighbors(x: usize, y: usize) -> impl Iterator<Item = (usize, usize)> {
+    DIRS.iter().filter_map(move |&(dx, dy)| {
+        let (nx, ny) = (x as i32 + dx, y as i32 + dy);
+        if nx >= 0 && ny >= 0 && nx < SIZE as i32 && ny < SIZE as i32 {
+            Some((nx as usize, ny as usize))
+        } else {
+            None
+        }
+    })
+}
+
+fn bfs(blocked: &[[bool; SIZE]; SIZE]) -> usize {
+    let mut visited = [[false; SIZE]; SIZE];
+    let mut queue = VecDeque::new();
+
+    visited[0][0] = true;
+    queue.push_back((0usize, 0usize, 0usize));
+
+    while let Some((x, y, dist)) = queue.pop_front() {
+        if x == SIZE - 1 && y == SIZE - 1 {
+            return dist;
+        }
+        for (nx, ny) in neighbors(x, y) {
+            if !blocked[ny][nx] && !visited[ny][nx] {
+                visited[ny][nx] = true;
+                queue.push_back((nx, ny, dist + 1));
+            }
+        }
+    }
+
+    0
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, String)
 where
     T: BufRead,
 {
-    let mut memory = [[b'.'; SIZE]; SIZE];
-    let mut p1 = 0;
-    let mut p2 = String::new();
-    let mut previous = vec![];
+    let bytes: Vec<(usize, usize)> = lines
+        .map(|line| {
+            let line = line.unwrap();
+            let mut parts = line.split(',');
+            let x = parts.next().unwrap().parse().unwrap();
+            let y = parts.next().unwrap().parse().unwrap();
+            (x, y)
+        })
+        .collect();
 
-    for (index, line) in lines.enumerate() {
-        let line = line.unwrap();
+    // p1: BFS after FALLEN bytes
+    let mut blocked = [[false; SIZE]; SIZE];
+    for &(x, y) in &bytes[..FALLEN] {
+        blocked[y][x] = true;
+    }
+    let p1 = bfs(&blocked);
 
-        let numbers: Vec<usize> = line
-            .split(',')
-            .map(|s| s.parse::<usize>().unwrap())
-            .collect();
+    // p2: union-find in reverse — block everything, then restore bytes one by one
+    // until start and end are connected
+    for &(x, y) in &bytes[FALLEN..] {
+        blocked[y][x] = true;
+    }
 
-        let (x, y) = (numbers[0], numbers[1]);
+    let mut uf = UnionFind::new(SIZE * SIZE);
 
-        memory[y][x] = b'#';
-
-        if FALLEN == index + 1 {
-            previous = dijkstra(&memory);
-            p1 = previous.len();
-        } else if FALLEN <= index && previous.contains(&(x, y)) {
-            let points = dijkstra(&memory);
-
-            if points.is_empty() {
-                p2 = line;
-                break;
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            if !blocked[y][x] {
+                for (nx, ny) in neighbors(x, y) {
+                    if !blocked[ny][nx] {
+                        uf.union(idx(x, y), idx(nx, ny));
+                    }
+                }
             }
-            previous = points;
+        }
+    }
+
+    let start = idx(0, 0);
+    let end = idx(SIZE - 1, SIZE - 1);
+    let mut p2 = String::new();
+
+    for &(x, y) in bytes.iter().rev() {
+        blocked[y][x] = false;
+
+        for (nx, ny) in neighbors(x, y) {
+            if !blocked[ny][nx] {
+                uf.union(idx(x, y), idx(nx, ny));
+            }
+        }
+
+        if uf.connected(start, end) {
+            p2 = format!("{x},{y}");
+            break;
         }
     }
 
