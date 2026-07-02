@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::BinaryHeap;
 use std::io::{BufRead, Lines};
 
 const SIZE: usize = if cfg!(test) { 17 } else { 141 };
@@ -33,7 +33,7 @@ impl Direction {
         }
     }
 
-    fn next(&self, p: Point) -> Point {
+    fn forward(&self, p: Point) -> Point {
         match self {
             Direction::Up => (p.0, p.1 - 1),
             Direction::Right => (p.0 + 1, p.1),
@@ -41,95 +41,95 @@ impl Direction {
             Direction::Left => (p.0 - 1, p.1),
         }
     }
-}
 
-#[derive(Debug, Eq, PartialEq)]
-struct Path(Point, Direction, usize);
-
-impl Ord for Path {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.2.cmp(&self.2)
+    fn backward(&self, p: Point) -> Point {
+        match self {
+            Direction::Up => (p.0, p.1 + 1),
+            Direction::Right => (p.0 - 1, p.1),
+            Direction::Down => (p.0, p.1 - 1),
+            Direction::Left => (p.0 + 1, p.1),
+        }
     }
 }
 
-impl PartialOrd for Path {
+#[derive(Debug, Eq, PartialEq)]
+struct State {
+    point: Point,
+    direction: Direction,
+    score: usize,
+}
+
+impl State {
+    fn new(point: Point, direction: Direction, score: usize) -> Self {
+        State {
+            point,
+            direction,
+            score,
+        }
+    }
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.score.cmp(&self.score)
+    }
+}
+
+impl PartialOrd for State {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-fn best_paths(
-    scores: &mut [[[usize; 4]; SIZE]; SIZE],
-    start: Point,
-    d: Direction,
-    end: Point,
-) -> (usize, usize) {
-    let mut pred = vec![vec![vec![vec![]; 4]; SIZE]; SIZE];
+fn dijkstra<F>(scores: &mut [[[usize; 4]; SIZE]; SIZE], starts: &[(Point, Direction)], step: F)
+where
+    F: Fn(Direction, Point) -> Point,
+{
     let mut heap = BinaryHeap::new();
-    let mut v = vec![];
 
-    heap.push(Path(start, d, 0));
-    scores[start.1 as usize][start.0 as usize][d as usize] = 0;
+    for &(p, d) in starts {
+        heap.push(State::new(p, d, 0));
+        scores[p.1 as usize][p.0 as usize][d as usize] = 0;
+    }
 
-    let mut p1 = usize::MAX;
-
-    while let Some(Path(p, d, score)) = heap.pop() {
-        let next = d.next(p);
-
-        if next == end {
-            p1 = score + 1;
-            v.push((p, d));
-            continue;
-        }
-
-        let nexts = [
-            (p, d.turn_left(), score + 1000),
-            (p, d.turn_right(), score + 1000),
-            (next, d, score + 1),
+    while let Some(state) = heap.pop() {
+        let next_positions = [
+            State::new(state.point, state.direction.turn_left(), state.score + 1000),
+            State::new(
+                state.point,
+                state.direction.turn_right(),
+                state.score + 1000,
+            ),
+            State::new(
+                step(state.direction, state.point),
+                state.direction,
+                state.score + 1,
+            ),
         ];
 
-        for (nextp, nextd, nextscore) in nexts {
-            if nextscore > p1 {
+        for next in next_positions {
+            let current_score =
+                scores[next.point.1 as usize][next.point.0 as usize][next.direction as usize];
+
+            if current_score <= next.score {
                 continue;
             }
 
-            let scores_ref = &mut scores[nextp.1 as usize][nextp.0 as usize][nextd as usize];
+            scores[next.point.1 as usize][next.point.0 as usize][next.direction as usize] =
+                next.score;
 
-            if nextscore > *scores_ref {
-                continue;
-            }
-
-            let pred_ref = &mut pred[nextp.1 as usize][nextp.0 as usize][nextd as usize];
-
-            if nextscore < *scores_ref {
-                pred_ref.clear();
-            }
-
-            pred_ref.push((p, d));
-            *scores_ref = nextscore;
-            heap.push(Path(nextp, nextd, nextscore));
+            heap.push(next);
         }
     }
-
-    let mut p2 = HashSet::from([end]);
-
-    while let Some((p, d)) = v.pop() {
-        p2.insert(p);
-
-        for prevs in pred[p.1 as usize][p.0 as usize][d as usize].drain(..) {
-            v.push(prevs);
-        }
-    }
-
-    (p1, p2.len())
 }
 
 fn resolve<T>(lines: Lines<T>) -> (usize, usize)
 where
     T: BufRead,
 {
-    let mut scores: [[[usize; 4]; SIZE]; SIZE] = [[[usize::MAX; 4]; SIZE]; SIZE];
-    let mut position = (0, 0);
+    let mut scores = [[[usize::MAX; 4]; SIZE]; SIZE];
+    let mut scores2 = [[[usize::MAX; 4]; SIZE]; SIZE];
+    let mut start = (0, 0);
     let mut end = (0, 0);
 
     for (y, line) in lines.enumerate() {
@@ -137,8 +137,11 @@ where
 
         for (x, c) in line.as_bytes().iter().enumerate() {
             match c {
-                b'#' => scores[y][x] = [0, 0, 0, 0],
-                b'S' => position = (x as u16, y as u16),
+                b'#' => {
+                    scores[y][x] = [0, 0, 0, 0];
+                    scores2[y][x] = [0, 0, 0, 0]
+                }
+                b'S' => start = (x as u16, y as u16),
                 b'E' => end = (x as u16, y as u16),
                 b'.' => (),
                 _ => panic!(),
@@ -146,7 +149,40 @@ where
         }
     }
 
-    best_paths(&mut scores, position, Direction::Right, end)
+    dijkstra(&mut scores, &[(start, Direction::Right)], |d, p| {
+        d.forward(p)
+    });
+
+    let p1 = (0..4)
+        .map(|d| scores[end.1 as usize][end.0 as usize][d as usize])
+        .min()
+        .unwrap();
+
+    let ends = [
+        (end, Direction::Up),
+        (end, Direction::Right),
+        (end, Direction::Down),
+        (end, Direction::Left),
+    ];
+    dijkstra(&mut scores2, &ends, |d, p| d.backward(p));
+
+    let mut p2 = 0;
+
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            if scores[y][x][0] == 0 {
+                continue;
+            }
+            for d in 0..4 {
+                if scores[y][x][d].overflowing_add(scores2[y][x][d]).0 == p1 {
+                    p2 += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    (p1, p2)
 }
 
 #[test]
