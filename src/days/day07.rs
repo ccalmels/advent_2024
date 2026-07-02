@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::io::{BufRead, Lines};
 
-fn number_of_digits(n: u64) -> u64 {
+fn next_power_of_ten(n: u64) -> u64 {
     let mut count = 1;
     let mut temp = n;
 
@@ -15,9 +15,9 @@ fn number_of_digits(n: u64) -> u64 {
 
 #[test]
 fn check_number_of_digits() {
-    assert_eq!(number_of_digits(123), 1000);
-    assert_eq!(number_of_digits(8), 10);
-    assert_eq!(number_of_digits(12345), 100000);
+    assert_eq!(next_power_of_ten(123), 1000);
+    assert_eq!(next_power_of_ten(8), 10);
+    assert_eq!(next_power_of_ten(12345), 100000);
 }
 
 enum Operation {
@@ -31,7 +31,7 @@ impl Operation {
         match self {
             Operation::Add => a + b,
             Operation::Multiply => a * b,
-            Operation::Concatenate => a * number_of_digits(b) + b,
+            Operation::Concatenate => a * next_power_of_ten(b) + b,
         }
     }
 }
