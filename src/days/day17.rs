@@ -10,13 +10,8 @@ struct Cpu {
 }
 
 impl Cpu {
-    fn new(registers: [u64; 3]) -> Self {
-        Cpu {
-            a: registers[0],
-            b: registers[1],
-            c: registers[2],
-            pc: 0,
-        }
+    fn new(a: u64, b: u64, c: u64) -> Self {
+        Cpu { a, b, c, pc: 0 }
     }
 
     fn combo(&self, value: u8) -> u64 {
@@ -115,10 +110,10 @@ impl<'a> Display for ProgramIterator<'a> {
 }
 
 impl Program {
-    fn run(&self, registers: [u64; 3]) -> ProgramIterator<'_> {
+    fn run(&self, a: u64, b: u64, c: u64) -> ProgramIterator<'_> {
         ProgramIterator {
             program: self,
-            cpu: Cpu::new(registers),
+            cpu: Cpu::new(a, b, c),
         }
     }
 }
@@ -128,19 +123,19 @@ fn check_program() {
     let program = Program(vec![0, 1, 5, 4, 3, 0]);
     let output = vec![4, 6, 3, 5, 6, 3, 5, 2, 1, 0];
 
-    for (a, &b) in program.run([729, 0, 0]).zip(output.iter()) {
+    for (a, &b) in program.run(729, 0, 0).zip(output.iter()) {
         assert_eq!(a, b);
     }
 
     let program = Program(vec![0, 3, 5, 4, 3, 0]);
 
-    for (a, &b) in program.run([117440, 0, 0]).zip(program.0.iter()) {
+    for (a, &b) in program.run(117440, 0, 0).zip(program.0.iter()) {
         assert_eq!(a, b);
     }
 }
 
 fn check_first_output(program: &Program, a: u64, expected: u8) -> Option<u64> {
-    let output = program.run([a, 0, 0]).next().unwrap();
+    let output = program.run(a, 0, 0).next().unwrap();
 
     if output == expected {
         Some(a)
@@ -178,10 +173,10 @@ fn get_a(program: &Program) -> u64 {
     }
 }
 
-fn get_output(program: &Program, registers: [u64; 3]) -> String {
+fn get_output(program: &Program, a: u64, b: u64, c: u64) -> String {
     let mut output = String::new();
 
-    for o in program.run(registers) {
+    for o in program.run(a, b, c) {
         if output.is_empty() {
             write!(output, "{o}").unwrap();
         } else {
@@ -225,7 +220,10 @@ where
 
     let program = Program(program);
 
-    (get_output(&program, registers), get_a(&program))
+    (
+        get_output(&program, registers[0], registers[1], registers[2]),
+        get_a(&program),
+    )
 }
 
 #[test]
